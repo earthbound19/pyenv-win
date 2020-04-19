@@ -1,34 +1,16 @@
 Option Explicit
 
-Dim objws
-Dim objfs
-Set objws = WScript.CreateObject("WScript.Shell")
-Set objfs = CreateObject("Scripting.FileSystemObject")
-
-Dim strCurrent
-Dim strPyenvHome
-Dim strDirCache
-Dim strDirVers
-Dim strDirLibs
-Dim strVerFile
-strCurrent   = objfs.GetAbsolutePathName(".")
-strPyenvHome = objfs.getParentFolderName(objfs.getParentFolderName(WScript.ScriptFullName))
-strDirCache  = strPyenvHome & "\install_cache"
-strDirVers   = strPyenvHome & "\versions"
-strDirLibs   = strPyenvHome & "\libexec"
-strVerFile   = "\.python-version"
-
-Sub ShowHelp()
-     WScript.echo "Usage: pyenv install [-f|-s] <version>"
-     WScript.echo "       pyenv install [-f|-s] <definition-file>"
-     WScript.echo "       pyenv install -l|--list"
-     WScript.echo ""
-     WScript.echo "  -l/--list          List all available versions"
-     WScript.echo "  -f/--force         Install even if the version appears to be installed already"
-     WScript.echo "  -s/--skip-existing Skip if the version appears to be installed already"
-     WScript.echo "  -q/--quiet         Install using /quiet. This does not show the UI nor does it prompt for inputs"
-     WScript.echo ""
-     WScript.Quit
+Sub Import(importFile)
+    Dim fso, libFile
+    On Error Resume Next
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    Set libFile = fso.OpenTextFile(fso.getParentFolderName(WScript.ScriptFullName) &"\"& importFile, 1)
+    ExecuteGlobal libFile.ReadAll
+    If Err.number <> 0 Then
+        WScript.Echo "Error importing library """& importFile &"""("& Err.Number &"): "& Err.Description
+        WScript.Quit 1
+    End If
+    libFile.Close
 End Sub
 
 Dim mirrorEnvPath
@@ -413,159 +395,286 @@ Function DownloadFile(strUrl,strFile)
     Stream.Close
 End Function
 
-Sub clear(cur)
-    If objfs.FolderExists(cur(1)) Then objfs.DeleteFolder cur(1),True 
-    If objfs.FileExists(cur(2)) Then objfs.DeleteFile   cur(2),True 
+WScript.Echo ":: [Info] ::  Mirror: " & mirror
+
+Sub ShowHelp()
+    WScript.Echo "Usage: pyenv install [-f] <version> [<version> ...]"
+    WScript.Echo "       pyenv install [-f] -a|--all"
+    WScript.Echo "       pyenv install [-f] -c|--clear"
+    WScript.Echo "       pyenv install -l|--list"
+    WScript.Echo ""
+    WScript.Echo "  -l/--list   List all available versions"
+    WScript.Echo "  -a/--all    Installs all known version from the local version DB cache"
+    WScript.Echo "  -c/--clear  Removes downloaded installers from the cache to free space"
+    WScript.Echo "  -f/--force  Install even if the version appears to be installed already"
+    WScript.Echo "  -q/--quiet  Install using /quiet. This does not show the UI nor does it prompt for inputs"
+    WScript.Echo ""
+    WScript.Quit
 End Sub
 
-Sub download(cur)
-    WScript.echo ":: [Downloading] ::  " & cur(0) & " ..."
-    WScript.echo ":: [Downloading] ::  From " & cur(3)
-    WScript.echo ":: [Downloading] ::  To   " & cur(2)
-    DownloadFile cur(3) , cur(2)
-End Sub
-
-Sub extract(cur)
-	If Not objfs.FolderExists( strDirCache ) Then objfs.CreateFolder(strDirCache)
-    If Not objfs.FolderExists( strDirVers  ) Then objfs.CreateFolder(strDirVers )
-
-    If objfs.FolderExists(cur(1)) Then Exit Sub
-
-    If Not objfs.FileExists(cur(2)) Then download(cur)
-
-      WScript.echo ":: [Installing] ::  " & cur(0) & " ..."
-
-    objws.CurrentDirectory = strDirCache
-	Dim exe_file
-	Dim target_location
-	exe_file = """" & cur(2) & """"
-    target_location = """" & cur(1) & """"
-    If cur(5) Then
-        objws.Run exe_file & " /quiet InstallAllUsers=0 Include_launcher=0 Include_test=0 SimpleInstall=1 TargetDir=" & target_location, 0, true
-    Else
-        objws.Run exe_file & " InstallAllUsers=0 Include_launcher=0 Include_test=0 SimpleInstall=1 TargetDir=" & target_location, 0, true
-    End If
-
-    If objfs.FolderExists(cur(1)) Then
-        objws.Run "pyenv rehash " & cur(0), 0, false
-        WScript.echo ":: [Info] :: completed! " & cur(0)
-    Else
-        WScript.echo ":: [Error] :: couldn't install .. " & cur(0)
-    End If
-End Sub
-
-Function GetCurrentVersionGlobal()
-    GetCurrentVersionGlobal = Null
-
-    Dim fname
-    Dim objFile
-    fname = strPyenvHome & "\version"
-    If objfs.FileExists( fname ) Then
-        Set objFile = objfs.OpenTextFile(fname)
-        If objFile.AtEndOfStream <> True Then
-           GetCurrentVersionGlobal = Array(objFile.ReadLine,fname)
+Sub EnsureFolder(path)
+    Dim stack
+    Dim folder
+    Set stack = CreateObject("System.Collections.ArrayList")
+    stack.Add path
+    On Error Resume Next
+    Do While stack.Count
+        folder = stack(stack.Count-1)
+        If objfs.FolderExists(folder) Then
+            stack.RemoveAt stack.Count-1
+        ElseIf Not objfs.FolderExists(objfs.GetParentFolderName(folder)) Then
+            stack.Add objfs.GetParentFolderName(folder)
+        Else
+            objfs.CreateFolder folder
+            If Err.number <> 0 Then Exit Sub
+            stack.RemoveAt stack.Count-1
         End If
-        objFile.Close
-    End If
-End Function
+    Loop
+End Sub
 
-Function GetCurrentVersionLocal(path)
-    GetCurrentVersionLocal = Null
+Sub download(params)
+    WScript.Echo ":: [Downloading] ::  " & params(LV_Code) & " ..."
+    WScript.Echo ":: [Downloading] ::  From " & params(LV_URL)
+    WScript.Echo ":: [Downloading] ::  To   " & params(IP_InstallFile)
+    DownloadFile params(LV_URL), params(IP_InstallFile)
+End Sub
 
-    Dim fname
-    Dim objFile
-    Do While path <> ""
-        fname = path & strVerFile
-        If objfs.FileExists( fname ) Then
-            Set objFile = objfs.OpenTextFile(fname)
-            If objFile.AtEndOfStream <> True Then
-               GetCurrentVersionLocal = Array(objFile.ReadLine,fname)
-            End If
-            objFile.Close
+Function deepExtract(params)
+    Dim webCachePath
+    Dim installPath
+    webCachePath = strDirCache &"\"& params(LV_Code) &"-webinstall"
+    installPath = params(IP_InstallPath)
+    deepExtract = -1
+
+    If Not objfs.FolderExists(webCachePath) Then
+        deepExtract = objws.Run(""""& params(IP_InstallFile) &""" /quiet /layout """& webCachePath &"""", 0, True)
+        If deepExtract Then
+            WScript.Echo ":: [Error] :: error using web installer."
             Exit Function
         End If
-        path = objfs.getParentFolderName(path)
-    Loop
-End Function
+    End If
 
-Function GetCurrentVersionShell()
-    GetCurrentVersionShell = Null
+    ' Clean unused install files.
+    Dim file
+    Dim baseName
+    For Each file In objfs.GetFolder(webCachePath).Files
+        baseName = LCase(objfs.GetBaseName(file))
+        If LCase(objfs.GetExtensionName(file)) <> "msi" Or _
+           Right(baseName, 2) = "_d" Or _
+           Right(baseName, 4) = "_pdb" Or _
+           baseName = "launcher" Or _
+           baseName = "path" Or _
+           baseName = "pip" _
+        Then
+            objfs.DeleteFile file
+        End If
+    Next
 
-    Dim str
-    str=objws.ExpandEnvironmentStrings("%PYENV_VERSION%")
-    If str <> "%PYENV_VERSION%" Then
-        GetCurrentVersionShell = Array(str,"%PYENV_VERSION%")
+    ' Install the remaining MSI files into our install folder.
+    Dim msi
+    For Each file In objfs.GetFolder(webCachePath).Files
+        baseName = LCase(objfs.GetBaseName(file))
+        deepExtract = objws.Run("msiexec /quiet /a """& file &""" TargetDir="""& installPath & """", 0, True)
+        If deepExtract Then
+            WScript.Echo ":: [Error] :: error installing """& baseName &""" component MSI."
+            Exit Function
+        End If
+
+        ' Delete the duplicate MSI files post-install.
+        msi = installPath &"\"& objfs.GetFileName(file)
+        If objfs.FileExists(msi) Then objfs.DeleteFile msi
+    Next
+
+    ' If the ensurepip Lib exists, call it manually since "msiexec /a" installs don't do this.
+    If objfs.FolderExists(installPath &"\Lib\ensurepip") Then
+        deepExtract = objws.Run(""""& installPath &"\python"" -E -s -m ensurepip -U --default-pip", 0, True)
+        If deepExtract Then
+            WScript.Echo ":: [Error] :: error installing pip."
+            Exit Function
+        End If
     End If
 End Function
 
-Function GetCurrentVersionNoError()
-    Dim str
-    str=GetCurrentVersionShell
-    If IsNull(str) Then str = GetCurrentVersionLocal(strCurrent)
-    If IsNull(str) Then str = GetCurrentVersionGlobal
-    GetCurrentVersionNoError = str
-End Function
+Sub extract(params)
+    Dim installFile
+    Dim installFileFolder
+    Dim installPath
+    Dim quiet
+
+    installFile = params(IP_InstallFile)
+    installFileFolder = objfs.GetParentFolderName(installFile)
+    installPath = params(IP_InstallPath)
+    If params(IP_Quiet) Then quiet = " /quiet"
+
+    If Not objfs.FolderExists(installFileFolder) Then _
+        EnsureFolder(installFileFolder)
+
+    If Not objfs.FolderExists(objfs.GetParentFolderName(installPath)) Then _
+        EnsureFolder(objfs.GetParentFolderName(installPath))
+
+    If objfs.FolderExists(installPath) Then Exit Sub
+
+    If Not objfs.FileExists(installFile) Then download(params)
+
+    WScript.Echo ":: [Installing] ::  "& params(LV_Code) &" ..."
+    objws.CurrentDirectory = installFileFolder
+
+    ' Wrap the paths in quotes in case of spaces in the path.
+    Dim qInstallFile
+    Dim qInstallPath
+    qInstallFile = """"& installFile &""""
+    qInstallPath = """"& installPath &""""
+
+    Dim exitCode
+    Dim file
+    If params(LV_MSI) Then
+        exitCode = objws.Run("msiexec /quiet /a "& qInstallFile &" TargetDir="& qInstallPath, 9, True)
+        If exitCode = 0 Then
+            ' Remove duplicate .msi files from install path.
+            For Each file In objfs.GetFolder(installPath).Files
+                If LCase(objfs.GetExtensionName(file)) = "msi" Then objfs.DeleteFile file
+            Next
+
+            ' If the ensurepip Lib exists, call it manually since "msiexec /a" installs don't do this.
+            If objfs.FolderExists(installPath &"\Lib\ensurepip") Then
+                exitCode = objws.Run(""""& installPath &"\python"" -E -s -m ensurepip -U --default-pip", 0, True)
+                If exitCode Then WScript.Echo ":: [Error] :: error installing pip."
+            End If
+        End If
+    ElseIf params(LV_Web) Then
+        exitCode = deepExtract(params)
+    Else
+        exitCode = objws.Run(qInstallFile & quiet &" InstallAllUsers=0 Include_launcher=0 Include_test=0 SimpleInstall=1 TargetDir="& qInstallPath, 9, True)
+    End If
+
+    If exitCode = 0 Then
+        WScript.Echo ":: [Info] :: completed! "& params(LV_Code)
+        SetGlobalVersion params(LV_Code)
+    Else
+        WScript.Echo ":: [Error] :: couldn't install .. "& params(LV_Code)
+    End If
+End Sub
 
 Sub main(arg)
     If arg.Count = 0 Then ShowHelp
 
     Dim idx
     Dim optForce
-    Dim optSkip
     Dim optList
     Dim optQuiet
-    Dim version
+    Dim optAll
+    Dim optClear
+    Dim installVersions
 
-    optForce=False
-    optSkip=False
-    optList=False
-    optQuiet=False
-    version=""
+    optForce = False
+    optList = False
+    optQuiet = False
+    optAll = False
+    Set installVersions = CreateObject("Scripting.Dictionary")
 
     For idx = 0 To arg.Count - 1
         Select Case arg(idx)
-           Case "--help"          ShowHelp
-           Case "-l"              optList=True
-           Case "--list"          optList=True
-           Case "-f"              optForce=True
-           Case "--force"         optForce=True
-           Case "-s"              optSkip=True
-           Case "--skip-existing" optSkip=True
-           Case "-q"              optQuiet=True
-           Case "--quiet"         optQuiet=True
-           Case Else
-               version = arg(idx)
-               Exit For
+            Case "--help"  ShowHelp
+            Case "-l"      optList = True
+            Case "--list"  optList = True
+            Case "-f"      optForce = True
+            Case "--force" optForce = True
+            Case "-q"      optQuiet = True
+            Case "--quiet" optQuiet = True
+            Case "-a"      optAll = True
+            Case "--all"   optAll = True
+            Case "-c"      optClear = True
+            Case "--clear" optClear = True
+            Case Else
+                installVersions.Item(arg(idx)) = Empty
         End Select
     Next
 
-    If version = "" Then
-        Dim ary
-        ary=GetCurrentVersionNoError()
-        If Not IsNull(ary) Then version=ary(0)
+    Dim versions
+    Dim version
+    Set versions = LoadVersionsXML(strDBFile)
+    If versions.Count = 0 Then
+        WScript.Echo "pyenv-install: no definitions in local database"
+        WScript.Echo
+        WScript.Echo "Please update the local database cache with `pyenv update'."
+        WScript.Quit 1
     End If
 
-    Dim list
-    Dim cur
-    If optList Then
-        For Each list In listEnv
-            WScript.echo list(0)
-        Next
-        Exit Sub
-    ElseIf version <> "" Then
-        For Each list In listEnv
-            If list(0) = version Then
-                cur=Array(list(0),strDirVers&"\"&list(0),strDirCache&"\"&list(2),list(1)&list(2),list(3),optQuiet)
-                If optForce Then  clear(cur)
-                extract(cur)
-                Exit Sub
+    If Not optAll Then
+        If installVersions.Count = 0 Then
+            Dim ary
+            ary = GetCurrentVersionNoError()
+            If Not IsNull(ary) Then installVersions.Item(ary(0)) = Empty
+        End If
+
+        ' Pre-check if all versions to install exist.
+        For Each version In installVersions.Keys
+            If Not versions.Exists(version) Then
+                WScript.Echo "pyenv-install: definition not found: "& version
+                WScript.Echo
+                WScript.Echo "See all available versions with `pyenv install --list'."
+                WScript.Quit 1
             End If
         Next
-        WScript.echo "pyenv-install: definition not found: " & version
-        WScript.echo ""
-        WScript.echo "See all available versions with `pyenv install --list'."
+    End If
+
+    If optList Then
+        For Each version In versions.Keys
+            WScript.Echo version
+        Next
+    ElseIf optClear Then
+        Dim objCache
+        Dim delError
+        delError = 0
+
+        On Error Resume Next
+        For Each objCache In objfs.GetFolder(strDirCache).Files
+            objCache.Delete optForce
+            If Err.Number <> 0 Then
+                WScript.Echo "pyenv: Error ("& Err.Number &") deleting file "& objCache.Name &": "& Err.Description
+                Err.Clear
+                delError = 1
+            End If
+        Next
+        For Each objCache In objfs.GetFolder(strDirCache).SubFolders
+            objCache.Delete optForce
+            If Err.Number <> 0 Then
+                WScript.Echo "pyenv: Error ("& Err.Number &") deleting folder "& objCache.Name &": "& Err.Description
+                Err.Clear
+                delError = 1
+            End If
+        Next
+        WScript.Quit delError
     Else
-        ShowHelp
+        Dim versDict
+        Dim verDef
+        Dim installParams
+
+        If optAll Then
+            Set versDict = versions
+        Else
+            Set versDict = installVersions
+        End If
+
+        If versDict.Count = 0 Then ShowHelp
+
+        For Each version In versDict.Keys
+            verDef = versions(version)
+            installParams = Array( _
+                verDef(LV_Code), _
+                verDef(LV_FileName), _
+                verDef(LV_URL), _
+                verDef(LV_x64), _
+                verDef(LV_Web), _
+                verDef(LV_MSI), _
+                strDirVers &"\"& verDef(LV_Code), _
+                strDirCache &"\"& verDef(LV_FileName), _
+                optQuiet _
+            )
+            If optForce Then clear(installParams)
+            extract(installParams)
+        Next
+        Rehash
     End If
 End Sub
 
