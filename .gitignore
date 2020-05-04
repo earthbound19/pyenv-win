@@ -108,4 +108,6 @@ shims/
 version
 versions/
 exec.bat
+output/
+output_pkg/
 

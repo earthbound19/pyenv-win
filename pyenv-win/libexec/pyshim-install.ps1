@@ -13,7 +13,7 @@ if (!$Global:g_pyshim_flag_commonlib_loaded) {
 function script:Main($argv) {
 
     $sopts = "lfskvg"
-    $loptions = @("list", "force", "skip-existing", "keep", "verbose", "version" , "debug")
+    $loptions = @("list", "force", "skip-existing", "keep", "verbose", "version" , "debug", "build")
     
     <#
 
