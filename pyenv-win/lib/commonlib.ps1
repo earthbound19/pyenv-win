@@ -1,0 +1,68 @@
+#require -V 5
+
+$dp0 = $PSScriptRoot
+$g_pyenv_root = Split-Path $dp0
+
+
+
+
+#region diagnosis
+    function Get-CurrentLineNumber {
+        $MyInvocation.ScriptLineNumber
+    }
+    # from  https://poshoholic.com/2009/01/19/powershell-quick-tip-how-to-retrieve-the-current-line-number-and-file-name-in-your-powershell-script/
+
+    New-Alias -Name __LINE__ -Value Get-CurrentLineNumber -Description 'Returns the current line number in a PowerShell script file.'
+
+    function Get-CurrentFileName {
+        $MyInvocation.ScriptName | Split-Path -leaf
+    }
+
+    New-Alias -Name __FILE__ -Value Get-CurrentFileName -Description 'Returns the name of the current PowerShell script file.'
+#endregion
+
+Function Get-IniFile ($file) {
+# https://stackoverflow.com/questions/417798/ini-file-parsing-in-powershell
+    $ini = [ordered]@{}
+  
+    # Create a default section if none exist in the file. Like a java prop file.
+    $section = "NO_SECTION"
+    $ini[$section] = [ordered]@{}
+  
+    switch -regex -file $file {
+      "^\[(.+)\]$" {
+        $section = $matches[1].Trim()
+        $ini[$section] = [ordered]@{}
+      }
+      "^\s*([^#;].+?)\s*=\s*(.*)" {
+        # skip comments that starts with sharp
+        $name,$value = $matches[1..2]
+        # skip comments that start with semicolon:
+        #if (!($name.StartsWith(";"))) {
+          $ini[$section][$name] = $value.Trim()
+        #}
+      }
+    }
+    $ini
+  }
+
+
+# global variable set
+$Global:g_pyshim_flag_commonlib_loaded = $true
+$Global:g_pyshim_libexec_path           = [IO.Path]::Combine( $g_pyenv_root , "libexec")
+$Global:g_pyshim_lib_path               = [IO.Path]::Combine( $g_pyenv_root , "lib")
+$Global:g_pyshim_versions_path          = [IO.Path]::Combine( $g_pyenv_root , "versions")
+$Global:g_fn_python_version             = ".python-version"
+$Global:g_global_python_version_path    = [IO.Path]::Combine( $g_pyenv_root , "version")
+if ($env:PYTHON_BUILD_PATH)
+{
+    $Global:g_python_build_path         = $env:PYTHON_BUILD_PATH
+} else {
+    $Global:g_python_build_path         = [IO.Path]::Combine( $g_pyenv_root , "sources")
+}
+
+
+
+
+Import-Module "$g_pyshim_lib_path\getargs.ps1" -Force
+
