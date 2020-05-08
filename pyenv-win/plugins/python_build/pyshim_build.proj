@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- Tasks 구성 -->
+  <!--c:\opt\vsbuild\v16\msbuild\current\bin\msbuild.exe -->
+ <Import Project="$(PCBUILD)..\Tools\msi\msi.props" />
+ <PropertyGroup>
+	<Nuget Condition="$(Nuget) == ''">$(ExternalsDir)\windows-installer\nuget\nuget.exe</Nuget>
+	<OutputName>python</OutputName>
+	<OutputName Condition="$(Platform) == 'x86'">$(OutputName)x86</OutputName>
+	<NuspecVersion>$(MajorVersionNumber).$(MinorVersionNumber).$(MicroVersionNumber)</NuspecVersion>
+	<TargetFile>$(_NUGETPKGDIR_)\$(OutputName).$(NuspecVersion).nupkg</TargetFile>
+	<PyShimBuildOutputPath>$(MSBuildThisFileDirectory)output_build</PyShimBuildOutputPath>
+	<PyShimVersionPath>$(_PYENV_VERSIONS_PATH_)\$(NuspecVersion)</PyShimVersionPath>
+	<CleanCommand>rmdir /q/s "$(PyShimBuildOutputPath)"</CleanCommand>
+  </PropertyGroup>
+  <Target Name="Clean">
+    <Message Text="타겟: Clean" />
+	<Exec Command="$(CleanCommand)" />	
+  </Target>
+  <Target Name="Build">
+    <MakeDir Directories="$(PyShimBuildOutputPath)" />
+    <Message Text="타겟: Build [$(NuspecVersion)]" />
+	<Message Text="타겟: _DISTDIR_ [$(_DISTDIR_)]" />
+	<Message Text="타겟: _NUGETPKGDIR_ [$(_NUGETPKGDIR_)]" />
+	<Message Text="타겟: TargetFile [$(TargetFile)]" />	
+	<Message Text="타겟: _PYENV_VERSIONS_PATH_ [$(_PYENV_VERSIONS_PATH_)]" />	
+	<Copy SourceFiles="$(TargetFile)" DestinationFolder="$(PyShimBuildOutputPath)" ContinueOnError="true" />
+	 <Exec Command="
+		$(Nuget) install python -Version $(NuspecVersion) -Source $(PyShimBuildOutputPath) -o $(_PYENV_VERSIONS_PATH_) -Verbosity detailed  -NonInteractive" Condition="!Exists($(PyShimVersionPath))"/>
+	<Exec Command="move /Y &quot;$(_PYENV_VERSIONS_PATH_)\$(OutputName).$(NuspecVersion)&quot; &quot;$(_PYENV_VERSIONS_PATH_)\$(NuspecVersion)&quot;" ContinueOnError="false" Condition="!Exists($(PyShimVersionPath))"  /> 
+	<Delete Files="$(_PYENV_VERSIONS_PATH_)\$(NuspecVersion)\$(OutputName).$(NuspecVersion).nupkg" ContinueOnError="true" />
+  </Target>
+  <Target Name="Rebuild" DependsOnTargets="Clean; Build">
+    <Message Text="타겟: Rebuild" />
+  </Target>
+</Project>
