@@ -10,6 +10,8 @@ if (!$Global:g_pyshim_flag_commonlib_loaded) {
     Write-Verbose "($(__FILE__):$(__LINE__)) Common lib not loaded .. loading..."
 }
 
+$script:nuget_bin = [IO.Path]::Combine($Global:g_global_externals_path, "nuget.exe")
+
 function script:Main($argv) {
     $sopts = "h"
     $loption = @("verbose", "file:", "help")
@@ -27,8 +29,27 @@ function script:Main($argv) {
     {
         {($_ -ceq 'nuget')} {
             Write-Host "nuget url $($pyshim_externals_ini['nuget']['url'])"
-            break;
+            $out_file = [IO.Path]::Combine( $Global:g_global_externals_path , $pyshim_externals_ini['nuget']['outfile'])
+            Invoke-WebRequest $pyshim_externals_ini['nuget']['url'] -OutFile "$($out_file)"
+            if (!$?) {
+                Write-Error "($(__FILE__):$(__LINE__)) nuget installation failed."
+                break;
+            }
         }
+        {($_ -ceq '7za')} {
+             Write-Host "getting 7za nuget_package $($pyshim_externals_ini['7za']['nuget_package'])"
+             & "$script:nuget_bin" install $pyshim_externals_ini['7za']['nuget_package'] -ExcludeVersion -OutputDirectory $Global:g_global_externals_path 
+
+             if (!$?) {
+                Write-Error "($(__FILE__):$(__LINE__)) nuget installation failed."
+                break;
+             } else {
+                $out_file = [IO.Path]::Combine( $Global:g_global_externals_path ,$pyshim_externals_ini['7za']['nuget_package'], $pyshim_externals_ini['7za']['outfile'] )
+                Move-Item -Path $out_file -Destination $Global:g_global_externals_path
+             } 
+
+        }
+
     }
 
 }

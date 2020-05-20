@@ -87,6 +87,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+env_*.bat
 
 # Spyder project settings
 .spyderproject
@@ -107,5 +108,8 @@ version
 versions/
 exec.bat
 output/
-output_pkg/
+output_*/
+externals/
+pythonx86/
+
 

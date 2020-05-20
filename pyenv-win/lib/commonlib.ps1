@@ -47,22 +47,43 @@ Function Get-IniFile ($file) {
   }
 
 
-# global variable set
+#region global variable set
 $Global:g_pyshim_flag_commonlib_loaded = $true
 $Global:g_pyshim_libexec_path           = [IO.Path]::Combine( $g_pyenv_root , "libexec")
 $Global:g_pyshim_lib_path               = [IO.Path]::Combine( $g_pyenv_root , "lib")
 $Global:g_pyshim_versions_path          = [IO.Path]::Combine( $g_pyenv_root , "versions")
 $Global:g_fn_python_version             = ".python-version"
 $Global:g_global_python_version_path    = [IO.Path]::Combine( $g_pyenv_root , "version")
+$Global:g_global_externals_path         = [IO.Path]::Combine( $g_pyenv_root , "externals")
+$Global:g_global_build_plugin_path      = [IO.Path]::Combine( $g_pyenv_root , "plugins", "python_build")
+
 if ($env:PYTHON_BUILD_PATH)
 {
     $Global:g_python_build_path         = $env:PYTHON_BUILD_PATH
 } else {
     $Global:g_python_build_path         = [IO.Path]::Combine( $g_pyenv_root , "sources")
 }
+#endregion
 
+Function Expand-7z() {
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrEmpty()]
+    [string]$Path, 
 
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrEmpty()]
+    [string]$Destination
+  )
 
+  $7z_bin = [IO.Path]::Combine($Global:g_global_externals_path , "7za.exe")
+  
+  $call_args = "x $($Path) -o$(Destination) -bso1 -y"
+
+  Invoke-Expression  "& `"$7z_bin`" $call_args"
+
+}
 
 Import-Module "$g_pyshim_lib_path\getargs.ps1" -Force
 
