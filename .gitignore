@@ -113,3 +113,7 @@ externals/
 pythonx86/
 
 
+/pyenv-win/shims/pip.exe
+/pyenv-win/shims/pip.shim
+/pyenv-win/shims/python.exe
+/pyenv-win/shims/python.shim
