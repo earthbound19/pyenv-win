@@ -8,7 +8,7 @@ Contributors and Interested people can join us @ [Slack](https://join.slack.com/
 >  Link to Official [2019 Python Developers Survey](https://surveys.jetbrains.com/s3/c16-python-developers-survey-2019)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![GitHub issues open](https://img.shields.io/github/issues/pyenv-win/pyenv-win.svg?)](https://github.com/pyenv-win/pyenv-win/issues)
+[![GitHub issues open](https://img.shields.io/github/issues/inseopark/pyshim-win.svg?)](https://github.com/inseopark/pyshim-win/issues)
 [![Downloads](https://pepy.tech/badge/pyenv-win)](https://pepy.tech/project/pyenv-win)
 
 - [Introduction](#introduction)
