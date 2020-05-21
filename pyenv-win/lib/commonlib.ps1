@@ -65,6 +65,26 @@ if ($env:PYTHON_BUILD_PATH)
 }
 #endregion
 
+Function Get-PyVersionNo($version_string){
+
+  $ret_version = [PSCustomObject]@{
+    Major = 0
+    Minor = 0
+    Patch = 0
+    Revision = 0
+  }
+
+  $arr_ver = $version_string.split('.')
+
+  if($arr_ver[0]) {$ret_version.Major = $arr_ver[0]}
+  if($arr_ver[1]) {$ret_version.Minor = $arr_ver[1]}
+  if($arr_ver[2]) {$ret_version.Patch = $arr_ver[2]}
+
+  return $ret_version
+
+}
+
+
 Function Expand-7z() {
   [CmdletBinding()]
   param(

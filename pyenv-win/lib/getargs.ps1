@@ -35,9 +35,11 @@ function getargs($argv, $shortopts, $longopts) {
         $arg = $argv[$i]
         if($null -eq $arg) { continue }
         # don't try to parse array arguments
-        if($arg -is [array]) { $rem += ,$arg; continue }
-        if($arg -is [int]) { $rem += $arg; continue }
-        if($arg -is [decimal]) { $rem += $arg; continue }
+        if($arg -is [array])    { $rem += ,$arg; continue }
+        if($arg -is [int])      { $rem += [String] $arg; continue }
+        if($arg -is [decimal])  { $rem += [String] $arg; continue }
+        if($arg -is [Double])   { $rem += [String] $arg; continue }
+        # modified not to parse 3.6 as decimal
 
         if($arg.startswith('--')) {
             $name = $arg.substring(2)

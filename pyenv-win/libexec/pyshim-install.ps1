@@ -14,6 +14,7 @@ if (!$Global:g_pyshim_flag_commonlib_loaded) {
 $script:nuget_bin           = [IO.Path]::Combine($Global:g_global_externals_path , "nuget.exe")
 $script:7z_bin              = [IO.Path]::Combine($Global:g_global_externals_path , "7za.exe")
 $script:build_pythonx86_bin = [IO.Path]::Combine($Global:g_global_externals_path, "pythonx86", "Tools", "python.exe")
+$script:min_buildable_version ='3.6.3'
 
 function script:Check_Externals() {
 
@@ -30,6 +31,15 @@ function script:Check_Externals() {
 
 }
 
+Function Build_Python($buid_version) {
+    Write-Host "Build called"
+}
+
+Function Nuget_Install($build_version) {
+    Write-Host "Nuget install called"
+}
+
+
 function script:Main($argv) {
 
     $sopts = "lfskvg"
@@ -42,7 +52,7 @@ function script:Main($argv) {
        pyenv install -l|--list
        pyenv install --version
 
-    -l/--list          List all available versions
+    -l/--list          List all available versions (not yet implemented)
     -f/--force         Install even if the version appears to be installed already
     -s/--skip-existing Skip if the version appears to be installed already
 
@@ -69,14 +79,26 @@ function script:Main($argv) {
     #endregion
 
     $requested_version = $remains[0];
-    Write-Host "requested version[$requested_version]"
-
     # regex pattern created by https://regexr.com/39s32 jc@jmccc.com
-    $pattern_version = '^((([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)$'
+    #$pattern_version = '^((([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)$'
+    #$requested_version -match $pattern_version 
 
-    $requested_version -match $pattern_version | Out-String 
+    $o_version =  Get-PyVersionNo ($requested_version)
+    $st_version = "$($o_version.Major).$($o_version.Minor).$($o_version.Patch)"
+
+    if($opts.build) {
+        if ([version]$st_version -ge [version]$min_buildable_version) {
+            Write-Host "Version : $($o_version.Major).$($o_version.Minor).$($o_version.Patch) to be build "
+        } else {
+            Write-Host "Unable to build, supported version : >= $min_buildable_version"
+        }
+    } else {
+        Write-Host "Version : $($o_version.Major).$($o_version.Minor).$($o_version.Patch) to be installed via nuget "
+    }
+    
 
 
+    
 }
 
 script:Main($args)
