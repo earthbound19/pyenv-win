@@ -1,4 +1,4 @@
-#requires -V 5
+#requires -V 5.1
 # pyshim-install.ps1
 
 $script:dp0 = $PSScriptRoot
@@ -13,7 +13,9 @@ if (!$Global:g_pyshim_flag_commonlib_loaded) {
 
 $script:nuget_bin           = [IO.Path]::Combine($Global:g_global_externals_path , "nuget.exe")
 $script:7z_bin              = [IO.Path]::Combine($Global:g_global_externals_path , "7za.exe")
-$script:build_pythonx86_bin = [IO.Path]::Combine($Global:g_global_externals_path, "pythonx86", "Tools", "python.exe")
+$script:build_pythonx86_bin = [IO.Path]::Combine($Global:g_global_build_plugin_path, "pythonx86", "Tools", "python.exe")
+$script:build_unpacker      = [IO.Path]::Combine($Global:g_global_build_plugin_path, "pyshim_unpack.py")
+$script:pyshim_builder      = [IO.Path]::Combine($Global:g_global_build_plugin_path, "pyshim_build.bat")
 $script:min_buildable_version ='3.6.3'
 
 function script:Check_Externals() {
@@ -22,28 +24,86 @@ function script:Check_Externals() {
         Write-Host "nuget missing, installing nuget ..."
         & ([IO.Path]::Combine($g_pyshim_libexec_path, "get_externals.ps1")) 'nuget'
     }
-
+<#
     if (-not (Test-Path $script:7z_bin)) {
         Write-Host "7za missing, installing 7za  ..."
         & ([IO.Path]::Combine($g_pyshim_libexec_path, "get_externals.ps1")) '7za'
     }
+#>
     
 
 }
 
-Function Build_Python($buid_version) {
-    Write-Host "Build called"
+Function script:Build_Python($build_version) {
+    $fetch_url  = "https://www.python.org/ftp/python/$($build_version)/Python-$($build_version).tar.xz"
+    $dest_file  =  [IO.Path]::Combine($Global:g_python_build_path, "Python-" + $build_version + ".tar.xz")
+    $build_path = [IO.Path]::Combine($Global:g_python_build_path, "Python-" + $build_version)
+    Write-Verbose "($(__FILE__):$(__LINE__)) url to download: $fetch_url"
+    Write-Verbose "($(__FILE__):$(__LINE__)) dest file      : $dest_file"
+
+    #pythonx86 for build install
+    if (-Not (Test-Path $build_pythonx86_bin)) {
+        Write-Verbose "($(__FILE__):$(__LINE__)) pythonx86 for build not available"
+        $call_args = "install pythonx86 -ExcudeVersion -o `"$($Global:g_python_build_path)`""
+        Invoke-Expression  "& `"$nuget_bin`" $call_args"
+     }
+    
+    if (-Not (Test-Path $g_python_build_path)) {
+        Write-Verbose "($(__FILE__):$(__LINE__)) $g_python_build_path not existing creating..."
+        New-Item -ItemType Directory -Force -Path $g_python_build_path > $null
+    }
+
+    if (Test-Path $build_path) {
+        Write-Host "source already exist, skipping download..."
+    } elseif (-Not (Test-Path($dest_file))) {
+ 
+        Invoke-WebRequest $fetch_url -OutFile $dest_file
+
+        if (-Not (Test-Path $dest_file)) {
+            Write-Host "failed to download python src file from  $fetch_url"
+            return
+        } 
+    } else {
+        $call_args = "$($script:build_unpacker) --file $dest_file --dest $($Global:g_python_build_path)"
+        Invoke-Expression  "& `"$build_pythonx86_bin`" $call_args"
+        Write-Verbose "($(__FILE__):$(__LINE__)) unextact called $call_args"
+    }
+
+    if (Test-Path $build_path) {
+
+        $call_args = "-x64 --src `"$($build_path)`""
+        Invoke-Expression  "& `"$pyshim_builder`" $call_args"
+    }
+
 }
 
-Function Nuget_Install($build_version) {
-    Write-Host "Nuget install called"
+Function script:Nuget_Install($build_version) {
+    # nuget install python -Version 3.6.3 -NoCache -NonInteractive -OutputDirectory ..
+
+    $call_args = "install python -Version $($build_version) -NonInteractive -OutputDirectory `"$($Global:g_pyshim_versions_path)`""
+
+
+    Invoke-Expression  "& `"$nuget_bin`" $call_args"
+
+    Write-Verbose "($(__FILE__):$(__LINE__)) nuget exit code : $LastExitCode"
+    $nupkg_path = [IO.Path]::Combine($Global:g_pyshim_versions_path, "python." + $build_version)
+
+    if (($LastExitCode -ne 0) -or (-Not( Test-Path $nupkg_path))) {
+
+        Write-Host "failed during install via nuget version : $build_version, try --build option if possible"
+    } else {
+        # rename directory
+        Rename-Item $nupkg_path ([IO.Path]::Combine($Global:g_pyshim_versions_path, $build_version)) 
+        #remove unnecessary *.nupkg
+        Remove-Item ([IO.Path]::Combine($Global:g_pyshim_versions_path, $build_version, "*.nupkg"))
+    }
 }
 
 
 function script:Main($argv) {
 
     $sopts = "lfskvg"
-    $loptions = @("list", "force", "skip-existing", "keep", "verbose", "version" , "debug", "build")
+    $loptions = @("list", "force", "file=", "skip-existing", "keep", "verbose", "version" , "debug", "build")
     Check_Externals
     <#
 
@@ -68,14 +128,15 @@ function script:Main($argv) {
 
     $opts, $remains, $errmsg = getargs $argv $sopts $loptions
 
-    $python_version =""
+
 
     #region checking nuget external exists
-    if (Test-Path $Global:g_global_python_version_path) {
-        Write-Verbose ( "($(__FILE__):$(__LINE__)) checking global python version in " + $Global:g_global_python_version_path)
+    if (Test-Path $Global:g_global_python_version_file) {
+        Write-Verbose ( "($(__FILE__):$(__LINE__)) checking global python version in " + $Global:g_global_python_version_file)
         # first version in version file is python global version
-        $python_version = (Get-Content -Path $Global:g_global_python_version_path -TotalCount 1).Trim()
+        $python_version = (Get-Content -Path $Global:g_global_python_version_file -TotalCount 1).Trim()
     }
+    Write-Verbose "($(__FILE__):$(__LINE__)) current global version :  $python_version"
     #endregion
 
     $requested_version = $remains[0];
@@ -86,14 +147,30 @@ function script:Main($argv) {
     $o_version =  Get-PyVersionNo ($requested_version)
     $st_version = "$($o_version.Major).$($o_version.Minor).$($o_version.Patch)"
 
-    if($opts.build) {
+    if (Test-Path ([IO.Path]::Combine( $Global:g_pyshim_versions_path, $st_version))) {
+
+        if ($opts.f -or $opts.force) {
+            $del_tree = [IO.Path]::Combine( $Global:g_pyshim_versions_path, $st_version)
+            Write-Host "Force install option triggered... deleting $del_tree"
+            Remove-Item -Path $del_tree -Force -Recurse
+
+        } else {
+            Write-Host "Version $st_version already installed"
+            return;
+        }
+    }
+
+    if ($opts.build) {
         if ([version]$st_version -ge [version]$min_buildable_version) {
             Write-Host "Version : $($o_version.Major).$($o_version.Minor).$($o_version.Patch) to be build "
+            Build_Python ($st_version)
         } else {
             Write-Host "Unable to build, supported version : >= $min_buildable_version"
+
         }
     } else {
-        Write-Host "Version : $($o_version.Major).$($o_version.Minor).$($o_version.Patch) to be installed via nuget "
+        Write-Host "Version : $st_version to be installed via nuget "
+        Nuget_Install($st_version)
     }
     
 

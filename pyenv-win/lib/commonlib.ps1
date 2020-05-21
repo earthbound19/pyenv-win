@@ -47,13 +47,14 @@ Function Get-IniFile ($file) {
   }
 
 
+
 #region global variable set
 $Global:g_pyshim_flag_commonlib_loaded = $true
 $Global:g_pyshim_libexec_path           = [IO.Path]::Combine( $g_pyenv_root , "libexec")
 $Global:g_pyshim_lib_path               = [IO.Path]::Combine( $g_pyenv_root , "lib")
 $Global:g_pyshim_versions_path          = [IO.Path]::Combine( $g_pyenv_root , "versions")
 $Global:g_fn_python_version             = ".python-version"
-$Global:g_global_python_version_path    = [IO.Path]::Combine( $g_pyenv_root , "version")
+$Global:g_global_python_version_file    = [IO.Path]::Combine( $g_pyenv_root , "version")
 $Global:g_global_externals_path         = [IO.Path]::Combine( $g_pyenv_root , "externals")
 $Global:g_global_build_plugin_path      = [IO.Path]::Combine( $g_pyenv_root , "plugins", "python_build")
 

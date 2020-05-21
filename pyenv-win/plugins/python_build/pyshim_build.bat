@@ -86,9 +86,9 @@ if defined BUILDX64 (
 popd
 
 if defined BUILDX64 (
-    %MSBUILD% -nologo "pyshim_build.proj" /p:Platform=x64
+    %MSBUILD% -nologo "%D%pyshim_build.proj" /p:Platform=x64
 ) ELSE (
-    %MSBUILD% -nologo "pyshim_build.proj"
+    %MSBUILD% -nologo "%D%pyshim_build.proj"
 )
 endlocal
 exit /B 0

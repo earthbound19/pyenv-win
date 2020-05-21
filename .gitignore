@@ -103,11 +103,11 @@ env_*.bat
 .mypy_cache/
 .tags
 install_cache/
-shims/
 version
 versions/
 exec.bat
 output/
+sources/
 output_*/
 externals/
 pythonx86/
