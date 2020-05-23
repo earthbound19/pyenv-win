@@ -13,16 +13,16 @@ if (!$Global:g_pyshim_flag_commonlib_loaded) {
 function script:Main($argv) {
 
     $sopts = ""
-    $loptions = @("name", "list")
+    $loptions = @("name", "list", "verbose")
 
     $opts, $remains, $errmsg = getargs $argv $sopts $loptions
 
     $python_version =""
 
     #region checking global python and set to $pyton_version
-    if (Test-Path $Global:g_global_python_version_path) {
-        Write-Verbose ( "($(__FILE__):$(__LINE__)) checking global python version in " + $Global:g_global_python_version_path)
-        $python_version = (Get-Content -Path $Global:g_global_python_version_path -TotalCount 1).Trim()
+    if (Test-Path $Global:g_global_python_version_file) {
+        Write-Verbose ( "($(__FILE__):$(__LINE__)) checking global python version in " + $Global:g_global_python_version_file)
+        $python_version = (Get-Content -Path $Global:g_global_python_version_file -TotalCount 1).Trim()
     }
     #endregion
 
@@ -33,7 +33,7 @@ function script:Main($argv) {
     #regioin option null, -name
         $search_path = $workingdir
  
-        $local_python_version_path = ""
+        $local_python_version_path = $Global:g_global_python_version_file
 
         While($search_path)
         {
@@ -58,7 +58,7 @@ function script:Main($argv) {
         #region print out python version default is global            
         if ($local_python_version_path) {
             $python_version = (Get-Content -Path $local_python_version_path -TotalCount 1).Trim()
-            $python_locating_src = " (set by $($local_python_version_path))"
+            $python_locating_src = "(set by $($local_python_version_path))"
 
         } elseif (!$python_version) {
             $python_version = "system"
@@ -66,9 +66,9 @@ function script:Main($argv) {
         }
         
         if ($opts.name) {
-            Write-Host "$python_version"
+            Write-Host "$python_version" -NoNewline
         } else {
-            Write-Host "$python_version $python_locating_src"
+            Write-Host "$python_version $python_locating_src" -NoNewline
         }
     #endregion
     } # enf of if

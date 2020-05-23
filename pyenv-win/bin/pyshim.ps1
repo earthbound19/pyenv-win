@@ -10,24 +10,11 @@ if([bool]($args -match '--verbose'))
     $VerbosePreference = 'continue'
 }
 
-if (!$Global:g_pyshim_flag_commonlib_loaded)
-{
-    Import-Module "$g_pyenv_root\lib\commonlib.ps1" -Force
-    #Write-Verbose "($(__FILE__):$(__LINE__)) Common lib not loaded .. loading..."
-}
 
-function script:getCommand($cmd)
-{
-    [IO.Path]::Combine( $g_pyshim_libexec_path , "pyshim-$($cmd).ps1")
-}
+Import-Module "$g_pyenv_root\lib\commonlib.ps1" -Force
 
-function script:executeCommand($cmdlet, $arr_rguments) {
-    # https://stackoverflow.com/questions/12850487/invoke-a-second-script-with-arguments-from-a-script
 
-    $call_args = $arr_rguments -join ' ' 
-     Write-Verbose ("($(__FILE__):$(__LINE__)) cmdlet:[{0}] to be called with arguments[{1}].." -f $cmdlet, $call_args)
-    Invoke-Expression "& `"$cmdlet`" $call_args"
-}
+
 
 
 function script:Main($argv) {

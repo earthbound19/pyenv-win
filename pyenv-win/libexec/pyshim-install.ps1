@@ -54,23 +54,29 @@ Function script:Build_Python($build_version) {
     }
 
     if (Test-Path $build_path) {
+
         Write-Host "source already exist, skipping download..."
+
     } elseif (-Not (Test-Path($dest_file))) {
- 
+        Write-Host "Downloading Python-$build_version.tar.xz ..."
+        Write-Host "-> $fetch_url"
         Invoke-WebRequest $fetch_url -OutFile $dest_file
 
         if (-Not (Test-Path $dest_file)) {
             Write-Host "failed to download python src file from  $fetch_url"
             return
         } 
-    } else {
+        
         $call_args = "$($script:build_unpacker) --file $dest_file --dest $($Global:g_python_build_path)"
         Invoke-Expression  "& `"$build_pythonx86_bin`" $call_args"
         Write-Verbose "($(__FILE__):$(__LINE__)) unextact called $call_args"
-    }
+
+    } 
 
     if (Test-Path $build_path) {
 
+
+        Write-Host "Building Python-$build_version"
         $call_args = "-x64 --src `"$($build_path)`""
         Invoke-Expression  "& `"$pyshim_builder`" $call_args"
     }
@@ -103,7 +109,7 @@ Function script:Nuget_Install($build_version) {
 function script:Main($argv) {
 
     $sopts = "lfskvg"
-    $loptions = @("list", "force", "file=", "skip-existing", "keep", "verbose", "version" , "debug", "build")
+    $loptions = @("list", "force", "file=", "skip-existing", "keep", "verbose", "version" , "debug", "build", "verbose")
     Check_Externals
     <#
 
@@ -155,14 +161,14 @@ function script:Main($argv) {
             Remove-Item -Path $del_tree -Force -Recurse
 
         } else {
-            Write-Host "Version $st_version already installed"
+            Write-Host "Version : $st_version already installed"
             return;
         }
     }
 
     if ($opts.build) {
         if ([version]$st_version -ge [version]$min_buildable_version) {
-            Write-Host "Version : $($o_version.Major).$($o_version.Minor).$($o_version.Patch) to be build "
+            Write-Host "Version : $($o_version.Major).$($o_version.Minor).$($o_version.Patch) to be built"
             Build_Python ($st_version)
         } else {
             Write-Host "Unable to build, supported version : >= $min_buildable_version"

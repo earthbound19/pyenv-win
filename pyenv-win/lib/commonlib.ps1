@@ -3,22 +3,32 @@
 $dp0 = $PSScriptRoot
 $g_pyenv_root = Split-Path $dp0
 
+function getCommand($cmd)
+{
+    [IO.Path]::Combine( $g_pyshim_libexec_path , "pyshim-$($cmd).ps1")
+}
+function executeCommand($cmdlet, $arr_rguments) {
+  # https://stackoverflow.com/questions/12850487/invoke-a-second-script-with-arguments-from-a-script
+
+  $call_args = $arr_rguments -join ' ' 
+  Invoke-Expression "& `"$cmdlet`" $call_args"
+}
 
 
 
 #region diagnosis
-    function Get-CurrentLineNumber {
-        $MyInvocation.ScriptLineNumber
-    }
-    # from  https://poshoholic.com/2009/01/19/powershell-quick-tip-how-to-retrieve-the-current-line-number-and-file-name-in-your-powershell-script/
+function Get-CurrentLineNumber {
+    $MyInvocation.ScriptLineNumber
+}
+# from  https://poshoholic.com/2009/01/19/powershell-quick-tip-how-to-retrieve-the-current-line-number-and-file-name-in-your-powershell-script/
 
-    New-Alias -Name __LINE__ -Value Get-CurrentLineNumber -Description 'Returns the current line number in a PowerShell script file.'
+New-Alias -Name __LINE__ -Value Get-CurrentLineNumber -Description 'Returns the current line number in a PowerShell script file.'
 
-    function Get-CurrentFileName {
-        $MyInvocation.ScriptName | Split-Path -leaf
-    }
+function Get-CurrentFileName {
+    $MyInvocation.ScriptName | Split-Path -leaf
+}
 
-    New-Alias -Name __FILE__ -Value Get-CurrentFileName -Description 'Returns the name of the current PowerShell script file.'
+New-Alias -Name __FILE__ -Value Get-CurrentFileName -Description 'Returns the name of the current PowerShell script file.'
 #endregion
 
 Function Get-IniFile ($file) {
@@ -57,6 +67,8 @@ $Global:g_fn_python_version             = ".python-version"
 $Global:g_global_python_version_file    = [IO.Path]::Combine( $g_pyenv_root , "version")
 $Global:g_global_externals_path         = [IO.Path]::Combine( $g_pyenv_root , "externals")
 $Global:g_global_build_plugin_path      = [IO.Path]::Combine( $g_pyenv_root , "plugins", "python_build")
+$Global:g_pyshim_shims_path            = [IO.Path]::Combine( $g_pyenv_root , "shims")
+$Global:g_pyshim_exe                   = [IO.Path]::Combine( $g_pyshim_lib_path , "pyshim.exe")
 
 if ($env:PYTHON_BUILD_PATH)
 {
@@ -83,6 +95,13 @@ Function Get-PyVersionNo($version_string){
 
   return $ret_version
 
+}
+
+function script:Set-Verbose($val) {
+
+  if ($VerbosePreference -ine $val) {
+      $VerbosePreference = $val
+  }
 }
 
 

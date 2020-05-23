@@ -41,7 +41,7 @@ function script:Main($argv) {
              & "$script:nuget_bin" install $pyshim_externals_ini['7za']['nuget_package'] -ExcludeVersion -OutputDirectory $Global:g_global_externals_path 
 
              if (!$?) {
-                Write-Error "($(__FILE__):$(__LINE__)) nuget installation failed."
+                Write-Error "($(__FILE__):$(__LINE__)) nuget '7za' installation failed."
                 break;
              } else {
                 $out_file = [IO.Path]::Combine( $Global:g_global_externals_path ,$pyshim_externals_ini['7za']['nuget_package'], $pyshim_externals_ini['7za']['outfile'] )

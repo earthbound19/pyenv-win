@@ -9,9 +9,6 @@ def extract_all(archives, extract_path):
     tf = tarfile.open(archives)
     tf.extractall(extract_path)
 
-    if os.path.exists(archives):
-        os.remove(archives)
-
 
 def main():
     parser = argparse.ArgumentParser(
@@ -24,7 +21,7 @@ def main():
 
 
     extract_all(args.filename, args.extract_path)
-    
+
 
 if __name__ == "__main__":
     sys.exit(main())
