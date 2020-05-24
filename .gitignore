@@ -112,4 +112,5 @@ sources/
 output_*/
 externals/
 pythonx86/
+config/config_*.yaml
 

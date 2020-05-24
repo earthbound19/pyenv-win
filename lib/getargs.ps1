@@ -30,6 +30,10 @@ function getargs($argv, $shortopts, $longopts) {
     # ensure these are arrays
     $argv = @($argv)
     $longopts = @($longopts)
+    
+    # if user add duplicate options then key contaminated, get uniq array
+    $longopts = $longopts |Sort-Object -Unique
+    $shortopts = $shortopts | Sort-Object -Unique
 
     for($i = 0; $i -lt $argv.length; $i++) {
         $arg = $argv[$i]

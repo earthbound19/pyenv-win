@@ -5,41 +5,40 @@ $script:dp0 = $PSScriptRoot
 $script:parent_path = Split-Path $dp0
 $script:workingdir = Get-Location
 
+$ErrorActionPreference = "Stop"
 
 if (!$Global:g_pyshim_flag_commonlib_loaded) {
     Import-Module "$parent_path\lib\commonlib.ps1" -Force
     Write-Verbose "($(__FILE__):$(__LINE__)) Common lib not loaded .. loading..."
 }
 
-$script:nuget_bin           = [IO.Path]::Combine($Global:g_global_externals_path , "nuget.exe")
-$script:7z_bin              = [IO.Path]::Combine($Global:g_global_externals_path , "7za.exe")
 $script:build_pythonx86_bin = [IO.Path]::Combine($Global:g_global_build_plugin_path, "pythonx86", "Tools", "python.exe")
 $script:build_unpacker      = [IO.Path]::Combine($Global:g_global_build_plugin_path, "pyshim_unpack.py")
 $script:pyshim_builder      = [IO.Path]::Combine($Global:g_global_build_plugin_path, "pyshim_build.bat")
 $script:min_buildable_version ='3.6.3'
+$script:nuget_bin           = [IO.Path]::Combine($Global:g_global_externals_path , "nuget.exe")
+$script:7z_bin              = [IO.Path]::Combine($Global:g_global_externals_path , $g_pyshim_externals_ini['7z']['outfile'])
 
 function script:Check_Externals() {
-
+    Write-Verbose "($(__FILE__):$(__LINE__)) checking external application ..."
     if (-not (Test-Path $script:nuget_bin)) {
         Write-Host "nuget missing, installing nuget ..."
         & ([IO.Path]::Combine($g_pyshim_libexec_path, "get_externals.ps1")) 'nuget'
     }
-<#
-    if (-not (Test-Path $script:7z_bin)) {
-        Write-Host "7za missing, installing 7za  ..."
-        & ([IO.Path]::Combine($g_pyshim_libexec_path, "get_externals.ps1")) '7za'
-    }
-#>
-    
 
+    if (-not (Test-Path $script:7z_bin)) {
+        Write-Host "7za missing, installing 7z  ..."
+        & ([IO.Path]::Combine($g_pyshim_libexec_path, "get_externals.ps1")) '7z'
+    }
 }
 
 Function script:Build_Python($build_version) {
-    $fetch_url  = "https://www.python.org/ftp/python/$($build_version)/Python-$($build_version).tar.xz"
+    $script:default_url = $Global:g_pyshim_config_yaml["python_build"]["default-site"]
+
+    $fetch_url  = "$($default_url)/$($build_version)/Python-$($build_version).tar.xz"
     $dest_file  =  [IO.Path]::Combine($Global:g_python_build_path, "Python-" + $build_version + ".tar.xz")
     $build_path = [IO.Path]::Combine($Global:g_python_build_path, "Python-" + $build_version)
-    Write-Verbose "($(__FILE__):$(__LINE__)) url to download: $fetch_url"
-    Write-Verbose "($(__FILE__):$(__LINE__)) dest file      : $dest_file"
+
 
     #pythonx86 for build install
     if (-Not (Test-Path $build_pythonx86_bin)) {
@@ -57,29 +56,60 @@ Function script:Build_Python($build_version) {
 
         Write-Host "source already exist, skipping download..."
 
-    } elseif (-Not (Test-Path($dest_file))) {
-        Write-Host "Downloading Python-$build_version.tar.xz ..."
-        Write-Host "-> $fetch_url"
-        Invoke-WebRequest $fetch_url -OutFile $dest_file
+    } else { 
+    
+        if (-Not (Test-Path ($dest_file))) {
+            Write-Host "Downloading Python-$build_version.tar.xz ..."
+            Write-Host "-> $fetch_url"
+            Invoke-WebRequest $fetch_url -OutFile $dest_file
 
-        if (-Not (Test-Path $dest_file)) {
-            Write-Host "failed to download python src file from  $fetch_url"
-            return
-        } 
+            if (-Not (Test-Path $dest_file)) {
+                Write-Host "failed to download python src file from  $fetch_url"
+                return
+            }
+        }
         
+        # extracting source    
         $call_args = "$($script:build_unpacker) --file $dest_file --dest $($Global:g_python_build_path)"
         Invoke-Expression  "& `"$build_pythonx86_bin`" $call_args"
         Write-Verbose "($(__FILE__):$(__LINE__)) unextact called $call_args"
-
+        
+        if (-Not (Test-Path $build_path)) {
+            Write-Error "($(__FILE__):$(__LINE__)) could not find downloaded src, terminating"
+            exit 1;
+        }
     } 
 
-    if (Test-Path $build_path) {
+    $script:build_log_file = "build_log-" + (Get-Date).ToString("yyyyMMdd_HHmm") + ".log"
+    $script:build_log      = [IO.Path]::Combine($Global:g_global_build_plugin_path,  $build_log_file)
+ 
+    Write-Host "Building Python-$build_version"
+    $call_args = "-x64 --src `"$($build_path)`""
 
-
-        Write-Host "Building Python-$build_version"
-        $call_args = "-x64 --src `"$($build_path)`""
-        Invoke-Expression  "& `"$pyshim_builder`" $call_args"
+    if ($VerbosePreference -ieq "Continue") {
+        Invoke-Expression  "& `"$pyshim_builder`" $call_args" | Tee-Object -Append -FilePath "$build_log"
+    } else {
+        Invoke-Expression  "& `"$pyshim_builder`" $call_args" > "$build_log"
     }
+
+    $build_exit_code = $LASTEXITCODE
+    Write-Verbose "($(__FILE__):$(__LINE__)) build exit code: $build_exit_code"
+
+    if (-Not (Test-Path ([IO.Path]::Combine( $Global:g_pyshim_versions_path, $build_version)))) {
+        Write-Host "pyshim: build failed check build log :$build_log_file" `
+        -ForegroundColor White -BackgroundColor Red 
+        exit 1;
+    }
+
+    #cleanup evertything because build succeded remove $build_log
+    Remove-Item $build_log -Force
+
+    if (-Not $opts.k -and (-Not $opts.keep)) {
+        Write-Verbose "($(__FILE__):$(__LINE__)) clean up build source directory"    
+        Remove-Item "$build_path" -Force -Recurse
+    }
+
+    Write-Host "pyshim: $build_version installed successfully" -ForegroundColor Blue
 
 }
 
@@ -102,6 +132,30 @@ Function script:Nuget_Install($build_version) {
         Rename-Item $nupkg_path ([IO.Path]::Combine($Global:g_pyshim_versions_path, $build_version)) 
         #remove unnecessary *.nupkg
         Remove-Item ([IO.Path]::Combine($Global:g_pyshim_versions_path, $build_version, "*.nupkg"))
+        Write-Host "pyshim: $build_version installed successfully" -ForegroundColor Blue
+    }
+}
+
+Function script:Nuget_FileInstall($build_version) {
+    # nuget install python -Version 3.6.3 -NoCache -NonInteractive -OutputDirectory ..
+
+    $call_args = "install python -Version $($build_version) -NonInteractive -OutputDirectory `"$($Global:g_pyshim_versions_path)`""
+
+
+    Invoke-Expression  "& `"$nuget_bin`" $call_args"
+
+    Write-Verbose "($(__FILE__):$(__LINE__)) nuget exit code : $LastExitCode"
+    $nupkg_path = [IO.Path]::Combine($Global:g_pyshim_versions_path, "python." + $build_version)
+
+    if (($LastExitCode -ne 0) -or (-Not( Test-Path $nupkg_path))) {
+
+        Write-Host "failed during install via nuget version : $build_version, try --build option if possible"
+    } else {
+        # rename directory
+        Rename-Item $nupkg_path ([IO.Path]::Combine($Global:g_pyshim_versions_path, $build_version)) 
+        #remove unnecessary *.nupkg
+        Remove-Item ([IO.Path]::Combine($Global:g_pyshim_versions_path, $build_version, "*.nupkg"))
+        Write-Host "pyshim: $build_version installed successfully" -ForegroundColor Blue
     }
 }
 
@@ -109,7 +163,7 @@ Function script:Nuget_Install($build_version) {
 function script:Main($argv) {
 
     $sopts = "lfskvg"
-    $loptions = @("list", "force", "file=", "skip-existing", "keep", "verbose", "version" , "debug", "build", "verbose")
+    $loptions = @("list", "force", "file=", "skip-existing", "keep", "verbose", "version" , "debug", "build")
     Check_Externals
     <#
 
@@ -133,8 +187,14 @@ function script:Main($argv) {
     #>
 
     $opts, $remains, $errmsg = getargs $argv $sopts $loptions
+    # https://stackoverflow.com/questions/36090764/powershell-hash-table-storing-values-of-system-collections-dictionaryentry
+    #$opts.GetEnumerator() | Get-Member -MemberType Properties
+    #Write-Output $opts
 
 
+    if ($opts.force) {
+        Write-Verbose ( "($(__FILE__):$(__LINE__)) checking global python version in " + $Global:g_global_python_version_file)
+    }
 
     #region checking nuget external exists
     if (Test-Path $Global:g_global_python_version_file) {
@@ -156,6 +216,7 @@ function script:Main($argv) {
     if (Test-Path ([IO.Path]::Combine( $Global:g_pyshim_versions_path, $st_version))) {
 
         if ($opts.f -or $opts.force) {
+            Write-Verbose "($(__FILE__):$(__LINE__)) force options given, version directory to be delete"
             $del_tree = [IO.Path]::Combine( $Global:g_pyshim_versions_path, $st_version)
             Write-Host "Force install option triggered... deleting $del_tree"
             Remove-Item -Path $del_tree -Force -Recurse

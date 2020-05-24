@@ -61,26 +61,36 @@ IF /I "%__CLEAN_TARGET__%" EQU "CleanAll" GOTO CLEAN
 echo [%_THIS_FILE_%] calling external "%__SRCDIR__%\Tools\msi\get_externals.bat"
 call "%__SRCDIR__%\Tools\msi\get_externals.bat"
 
+IF "%ERRORLEVEL%" NEQ "0" EXIT /B %ERRORLEVEL%
+
+
 echo [%_THIS_FILE_%] finding msbuild
 call "%PCBUILD%find_msbuild.bat" %MSBUILD%
-if ERRORLEVEL 1 (echo Cannot locate MSBuild.exe on PATH or as MSBUILD variable & exit /b 2)
+if ERRORLEVEL 1 (echo Cannot locate MSBuild.exe on PATH or as MSBUILD variable & EXIT /B 1)
 
 
 if defined BUILDX86 (
     if defined REBUILD ( call "build.bat" -e -r  %_p_platformtoolset% %_p_targetsdk%
     ) else if not exist "%Py_OutDir%win32\python.exe" call "build.bat" -e  %_p_platformtoolset% %_p_targetsdk%
-    if errorlevel 1 goto :eof
+    if errorlevel 1 EXIT /B %ERRORLEVEL%
 
     %MSBUILD% "%PCBUILD%..\Tools\nuget\make_pkg.proj" /p:Configuration=Release /p:Platform=x86  %p_DISTDIR% %p_NUGETPKGDIR% %PACKAGES% 
-    if errorlevel 1 goto :eof
+    if errorlevel 1 EXIT /B %ERRORLEVEL%
 )
 
 if defined BUILDX64 (
-    if defined REBUILD ( call "build.bat" -p x64 -e -r %_p_platformtoolset% %_p_targetsdk%
-    ) else if not exist "%Py_OutDir%amd64\python.exe" call "build.bat" -p x64 -e %_p_platformtoolset% %_p_targetsdk%
-    if errorlevel 1 goto :eof
-    %MSBUILD% "%PCBUILD%..\Tools\nuget\make_pkg.proj" /p:Configuration=Release /p:Platform=x64 %p_DISTDIR% %p_NUGETPKGDIR% %PACKAGES% 
-    if errorlevel 1 goto :eof
+
+    if defined REBUILD (
+		echo ...... rebuild ........
+		call "build.bat" -p x64 -e -r %_p_platformtoolset% %_p_targetsdk%
+    ) else (
+		echo ...... build 1 ........
+		if not exist "%Py_OutDir%amd64\python.exe" call "build.bat" -p x64 -e %_p_platformtoolset% %_p_targetsdk%
+		if errorlevel 1 EXIT /B %ERRORLEVEL%
+		echo ...... build 2 ........
+		%MSBUILD% "%PCBUILD%..\Tools\nuget\make_pkg.proj" /p:Configuration=Release /p:Platform=x64 %p_DISTDIR% %p_NUGETPKGDIR% %PACKAGES% 
+		if errorlevel 1 EXIT /B %ERRORLEVEL%
+	)
 )
 
 popd
@@ -90,7 +100,7 @@ if defined BUILDX64 (
 ) ELSE (
     %MSBUILD% -nologo "%D%pyshim_build.proj"
 )
-endlocal
+endlocal & IF "%ERRORLEVEL%" NEQ "0" EXIT /B %ERRORLEVEL%
 exit /B 0
 
 REM Clean / CleanAll __CLEAN_TARGET__
