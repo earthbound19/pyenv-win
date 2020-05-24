@@ -116,7 +116,8 @@ Function script:Build_Python($build_version) {
 Function script:Nuget_Install($build_version) {
     # nuget install python -Version 3.6.3 -NoCache -NonInteractive -OutputDirectory ..
 
-    $call_args = "install python -Version $($build_version) -NonInteractive -OutputDirectory `"$($Global:g_pyshim_versions_path)`""
+    $call_args = "install python -Version $($build_version) -NonInteractive " + `
+                 "-OutputDirectory `"$($Global:g_pyshim_versions_path)`""
 
 
     Invoke-Expression  "& `"$nuget_bin`" $call_args"
@@ -139,7 +140,8 @@ Function script:Nuget_Install($build_version) {
 Function script:Nuget_FileInstall($build_version) {
     # nuget install python -Version 3.6.3 -NoCache -NonInteractive -OutputDirectory ..
 
-    $call_args = "install python -Version $($build_version) -NonInteractive -OutputDirectory `"$($Global:g_pyshim_versions_path)`""
+    $call_args = "install python -Version $($build_version) -NonInteractive " + `
+                 "-OutputDirectory `"$($Global:g_pyshim_versions_path)`""
 
 
     Invoke-Expression  "& `"$nuget_bin`" $call_args"
@@ -191,6 +193,10 @@ function script:Main($argv) {
     #$opts.GetEnumerator() | Get-Member -MemberType Properties
     #Write-Output $opts
 
+    if ($opts.f -or $opts.list) {
+        Write-Host "Not yet implemented"
+        exit 0
+    }
 
     if ($opts.force) {
         Write-Verbose ( "($(__FILE__):$(__LINE__)) checking global python version in " + $Global:g_global_python_version_file)
@@ -229,7 +235,7 @@ function script:Main($argv) {
 
     if ($opts.build) {
         if ([version]$st_version -ge [version]$min_buildable_version) {
-            Write-Host "Version : $($o_version.Major).$($o_version.Minor).$($o_version.Patch) to be built"
+            Write-Verbose "($(__FILE__):$(__LINE__)) Version : $($o_version.Major).$($o_version.Minor).$($o_version.Patch) to be built"
             Build_Python ($st_version)
         } else {
             Write-Host "Unable to build, supported version : >= $min_buildable_version"

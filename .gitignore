@@ -113,4 +113,6 @@ output_*/
 externals/
 pythonx86/
 config/config_*.yaml
-
+config/config_*.bat
+config/cfg_*.yaml
+config/cfg_*.bat

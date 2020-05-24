@@ -29,7 +29,7 @@ if ($env:PYTHON_BUILD_PATH)
 #endregion
 
 Import-Module "$g_pyshim_lib_path\getargs.ps1" -Force
-Import-Module "$g_pyshim_lib_path\powershell-yaml\powershell-yaml.psm1" -Force
+Import-Module "$g_pyshim_lib_path\powershell-yaml\powershell-yaml.psm1" -Force -DisableNameChecking
 
 #read config
 

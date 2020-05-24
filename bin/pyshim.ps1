@@ -13,7 +13,7 @@ if([bool]($args -match '--verbose'))
 
 Import-Module "$g_pyenv_root\lib\commonlib.ps1" -Force
 
-
+Write-Verbose "($(__FILE__):$(__LINE__)) used pwsh version: $($PSVersionTable.PSVersion)"
 
 
 

@@ -1,0 +1,2 @@
+@SET "PYSHIM_PWSH=C:\opt\PowerShell\7\pwsh.exe"
+rem if you want to use pwsh copy this file to config_env.bat
