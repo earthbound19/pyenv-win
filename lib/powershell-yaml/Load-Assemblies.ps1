@@ -24,6 +24,7 @@ function Load-Assembly {
     }
 
     if ($PSVersionTable.PSEdition -eq "Core") {
+        Write-Verbose "Loading core 1.3"
         return [Reflection.Assembly]::LoadFrom($assemblies["core"])
     } elseif ($PSVersionTable.PSVersion.Major -ge 4) {
         return [Reflection.Assembly]::LoadFrom($assemblies["net45"])

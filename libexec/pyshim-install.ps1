@@ -33,17 +33,23 @@ function script:Check_Externals() {
 }
 
 Function script:Build_Python($build_version) {
-    $script:default_url = $Global:g_pyshim_config_yaml["python_build"]["default-site"]
-
-    $fetch_url  = "$($default_url)/$($build_version)/Python-$($build_version).tar.xz"
-    $dest_file  =  [IO.Path]::Combine($Global:g_python_build_path, "Python-" + $build_version + ".tar.xz")
-    $build_path = [IO.Path]::Combine($Global:g_python_build_path, "Python-" + $build_version)
-
+    Write-Verbose "($(__FILE__):$(__LINE__)) Build_Python triggered"
+   try {
+        $script:default_url = $Global:g_pyshim_config_yaml["python_build"]["default-site"]
+        $fetch_url  = "$($default_url)/$($build_version)/Python-$($build_version).tar.xz"
+        $dest_file  =  [IO.Path]::Combine($Global:g_python_build_path, "Python-" + $build_version + ".tar.xz")
+        $build_path = [IO.Path]::Combine($Global:g_python_build_path, "Python-" + $build_version)
+    } catch {
+        # strange, if parsing failed, commonlib invoke-expression error triggered
+        Write-Host "($(__FILE__):$(__LINE__)) Critical Error while loading url infomration from yaml" `
+        -ForegroundColor White -BackgroundColor Red -NoNewline
+        exit 1
+    }
 
     #pythonx86 for build install
     if (-Not (Test-Path $build_pythonx86_bin)) {
         Write-Verbose "($(__FILE__):$(__LINE__)) pythonx86 for build not available"
-        $call_args = "install pythonx86 -ExcudeVersion -o `"$($Global:g_python_build_path)`""
+        $call_args = "install pythonx86 -ExcludeVersion -o `"$($Global:g_global_build_plugin_path)`""
         Invoke-Expression  "& `"$nuget_bin`" $call_args"
      }
     
@@ -97,7 +103,7 @@ Function script:Build_Python($build_version) {
 
     if (-Not (Test-Path ([IO.Path]::Combine( $Global:g_pyshim_versions_path, $build_version)))) {
         Write-Host "pyshim: build failed check build log :$build_log_file" `
-        -ForegroundColor White -BackgroundColor Red 
+        -ForegroundColor White -BackgroundColor Red -NoNewline
         exit 1;
     }
 
@@ -133,7 +139,7 @@ Function script:Nuget_Install($build_version) {
         Rename-Item $nupkg_path ([IO.Path]::Combine($Global:g_pyshim_versions_path, $build_version)) 
         #remove unnecessary *.nupkg
         Remove-Item ([IO.Path]::Combine($Global:g_pyshim_versions_path, $build_version, "*.nupkg"))
-        Write-Host "pyshim: $build_version installed successfully" -ForegroundColor Blue
+        Write-Host "pyshim: $build_version installed successfully" -ForegroundColor Blue -NoNewline
     }
 }
 
@@ -142,7 +148,6 @@ Function script:Nuget_FileInstall($build_version) {
 
     $call_args = "install python -Version $($build_version) -NonInteractive " + `
                  "-OutputDirectory `"$($Global:g_pyshim_versions_path)`""
-
 
     Invoke-Expression  "& `"$nuget_bin`" $call_args"
 
@@ -157,7 +162,7 @@ Function script:Nuget_FileInstall($build_version) {
         Rename-Item $nupkg_path ([IO.Path]::Combine($Global:g_pyshim_versions_path, $build_version)) 
         #remove unnecessary *.nupkg
         Remove-Item ([IO.Path]::Combine($Global:g_pyshim_versions_path, $build_version, "*.nupkg"))
-        Write-Host "pyshim: $build_version installed successfully" -ForegroundColor Blue
+        Write-Host "pyshim: $build_version installed successfully" -ForegroundColor Blue -NoNewline
     }
 }
 
@@ -198,10 +203,6 @@ function script:Main($argv) {
         exit 0
     }
 
-    if ($opts.force) {
-        Write-Verbose ( "($(__FILE__):$(__LINE__)) checking global python version in " + $Global:g_global_python_version_file)
-    }
-
     #region checking nuget external exists
     if (Test-Path $Global:g_global_python_version_file) {
         Write-Verbose ( "($(__FILE__):$(__LINE__)) checking global python version in " + $Global:g_global_python_version_file)
@@ -214,7 +215,12 @@ function script:Main($argv) {
     $requested_version = $remains[0];
     # regex pattern created by https://regexr.com/39s32 jc@jmccc.com
     #$pattern_version = '^((([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)$'
-    #$requested_version -match $pattern_version 
+    #$requested_version -match $pattern_version
+    if(!$requested_version) {
+        Write-Host "($(__FILE__):$(__LINE__)) version not entered" `
+            -ForegroundColor White -BackgroundColor Red -NoNewline
+        exit 1
+    } 
 
     $o_version =  Get-PyVersionNo ($requested_version)
     $st_version = "$($o_version.Major).$($o_version.Minor).$($o_version.Patch)"
@@ -226,12 +232,12 @@ function script:Main($argv) {
             $del_tree = [IO.Path]::Combine( $Global:g_pyshim_versions_path, $st_version)
             Write-Host "Force install option triggered... deleting $del_tree"
             Remove-Item -Path $del_tree -Force -Recurse
-
         } else {
             Write-Host "Version : $st_version already installed"
             return;
         }
     }
+
 
     if ($opts.build) {
         if ([version]$st_version -ge [version]$min_buildable_version) {

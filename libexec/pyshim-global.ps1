@@ -11,6 +11,21 @@ if (!$Global:g_pyshim_flag_commonlib_loaded) {
 }
 
 $script:nl = [Environment]::NewLine
+
+function script:gen_shim ($shim, $shim_path_exe, $shim_version, $shim_args) {
+
+    Copy-Item -Path ($Global:g_pyshim_exe) -Destination ([IO.Path]::Combine($Global:g_pyshim_shims_path,  "$shim.exe"))
+    
+    $shim_file = [IO.Path]::Combine($Global:g_pyshim_shims_path,  "$shim.shim")
+    $shim_path = [IO.Path]::Combine($Global:g_pyshim_versions_path,  $shim_version,  "tools", $shim_path_exe)
+
+    Set-Content -Path $shim_file -Value "path = $($shim_path)" -NoNewline
+    
+    if ($shim_args) {
+        Add-Content -Path $shim_file -Value "$($nl)args = $shim_args" -NoNewLine
+    }
+
+}
 function script:make_shims($st_version) {
 
     New-Item -ItemType Directory -Force -Path $Global:g_pyshim_shims_path > $null
@@ -29,20 +44,6 @@ function script:make_shims($st_version) {
     #gen_shim "pythonw" "pythonw.exe" $st_version ""
 }
 
-function script:gen_shim ($shim, $shim_path_exe, $shim_version, $shim_args) {
-
-    Copy-Item -Path ($Global:g_pyshim_exe) -Destination ([IO.Path]::Combine($Global:g_pyshim_shims_path,  "$shim.exe"))
-    
-    $shim_file = [IO.Path]::Combine($Global:g_pyshim_shims_path,  "$shim.shim")
-    $shim_path = [IO.Path]::Combine($Global:g_pyshim_versions_path,  $shim_version,  "tools", $shim_path_exe)
-
-    Set-Content -Path $shim_file -Value "path = $($shim_path)" -NoNewline
-    
-    if ($shim_args) {
-        Add-Content -Path $shim_file -Value "$($nl)args = $shim_args" -NoNewLine
-    }
-
-}
 
 function script:Main($argv) {
     $sopts = ""
@@ -66,7 +67,8 @@ function script:Main($argv) {
             if ($pyshim_version_list -contains $python_global_version) {
                 Write-Host "$python_global_version" -NoNewline
             } else {
-                Write-Host "pyshim: global version set to $python_global_version, but not exist" -ForegroundColor White -BackgroundColor Red 
+                Write-Host "pyshim: global version set to $python_global_version, but not exist" `
+                 -ForegroundColor White -BackgroundColor Red 
             }
         }
     } else {

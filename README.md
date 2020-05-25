@@ -1,15 +1,15 @@
-# pyenv for Windows
+# pyenv for Windows using shim
 
-[pyenv][1] is a great tool. I ported it to Windows. Some commands aren't implemented, but it's good enough for basic use.
+Based on [pyenv][1] , and pyenv-win, I foked more simplified but adding build from source capabilities.
+Generic use case is Poetry + Visual Source Code + Windows Console developers.
 
-For existing python users, we support installation via pip: [follow instructions](#installation)  
-Contributors and Interested people can join us @ [Slack](https://join.slack.com/t/pyenvforwindows/shared_invite/enQtODQ0NTQwMjEzOTA4LWE1YjMwMGI3YTAwYjg0MGQzNjg1ZjJiYTMzMTJkNWM4NTY5OTY4YmU3ZjhjMTc3MGJhMDY1MmJkMjFmY2ViNTI)
-
->  Link to Official [2019 Python Developers Survey](https://surveys.jetbrains.com/s3/c16-python-developers-survey-2019)
+Basic functionality:
+* Install python using nuget package : no registry changes required, installing old version with new version installed is possible
+* Build from source is possible
+* shim is borrowed from scoop project, but modified to support directory based .python-version 
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![GitHub issues open](https://img.shields.io/github/issues/pyenv-win/pyenv-win.svg?)](https://github.com/pyenv-win/pyenv-win/issues)
-[![Downloads](https://pepy.tech/badge/pyenv-win)](https://pepy.tech/project/pyenv-win)
+[![GitHub issues open](https://img.shields.io/github/issues/inseopark/pyshim-win.svg?)](https://github.com/inseopark/pyshim-win/issues)
 
 - [Introduction](#introduction)
 - [pyenv](#pyenv)
@@ -40,107 +40,72 @@ I found a similar system for [rbenv-win][3] for ruby developers. This project wa
 ## pyenv-win commands
 
 ```yml
-   commands    List all available pyenv commands
+   commands    List all available pyenv commands (* not yet implemented)
    local       Set or show the local application-specific Python version
    global      Set or show the global Python version
-   shell       Set or show the shell-specific Python version
+   shell       Set or show the shell-specific Python version (* not yet implemented required?)
    install     Install a Python version using python-build
-   uninstall   Uninstall a specific Python version
+   uninstall   Uninstall a specific Python version (*not yet implemented)
    rehash      Rehash pyenv shims (run this after installing executables)
    version     Show the current Python version and its origin
    versions    List all Python versions available to pyenv
-   exec        Runs an executable by first preparing PATH so that the selected Python
+   exec        Runs an executable by first preparing PATH so that the selected Python (not yet implemented)
 ```
 
 ## Installation
 
-### Get pyenv-win
+### Get pyshim-win
 
 Get pyenv-win via one of the following methods. (Note: examples are in command prompt. For Powershell, replace `%USERPROFILE%` with `$env:USERPROFILE`. For Git Bash, replace with `$HOME`.)
 
-- **With pip** (to support existing python users)
-   - `pip install pyenv-win --target %USERPROFILE%/.pyenv`
-- **With zip file**
-   1. Download link: [pyenv-win](https://github.com/pyenv-win/pyenv-win/archive/master.zip)
-   2. Extract to `%USERPROFILE%/.pyenv`
+
 - **With Git**
-   - `git clone https://github.com/pyenv-win/pyenv-win.git %USERPROFILE%/.pyenv`
+   - `git clone https://github.com/inseopark/pyshim-win.git %USERPROFILE%/.pyenv`
 
 ### Finish the installation
    
    1. Add a new variable under System variables in ENVIRONMENT with name:  
-      `PYENV` value: `%USERPROFILE%\.pyenv\pyenv-win` 
+      `PYENV_ROOT` value: `%USERPROFILE%\.pyenv` 
    2. Now add the following paths to your ENVIRONMENT PATH variable in order to access the pyenv command (don't forget to separate with semicolons):
-      - `%PYENV%\bin`
-      - `%PYENV%\shims`
+      - `%PYENV_ROOT%\bin`
+      - `%PYENV_ROOT%\shims`
       - __ENVIRONMENT PATH :: This PC -> Properties -> Advanced system settings -> Advanced -> Environment Variables... -> PATH__
       - _Be careful! People who uses Windows (>= May 2019 Update) must put these items above `%USERPROFILE%\AppData\Local\Microsoft\WindowsApps`; See [this article](https://devblogs.microsoft.com/python/python-in-the-windows-10-may-2019-update/)._
-   2. Verify the installation was successful by opening a new terminal and running `pyenv --version`
-   3. Now run the `pyenv rehash` from home directory
-      - You should see the [current pyenv version](https://github.com/pyenv-win/pyenv-win/blob/master/setup.py). If you are getting an error, go through the steps again. Still facing the issue? [Open a ticket](https://github.com/pyenv-win/pyenv-win/issues).
-   4. Run `pyenv` to see list of commands it supports. [More info...](#usage)
+   2. Verify the installation was successful by opening a new terminal and running `pyshim --version`
+   3. Install any python version and make global 
+      - ` pyshim install 3.8.2`
+      - ` pyshim global 3.8.2`
+   4. If you need specific python version for specific directory, change into directory and specify local version
+      - ` cd /d {some where}`
+      - ` pyshim local 3.7.7`
+      - ` pyshim version `
+      - ` 3.7.7 (set by C:\Apps\pyshim-win.git\version)`
+   5. Run `pyshim` to see list of commands it supports. [More info...](#usage)
 
    Installation is done. Hurray!
 
 ## Usage
 
-- To view a list of python versions supported by pyenv windows: `pyenv install -l`
-- To install a python version:  `pyenv install 3.5.2`
-   - _Note: Older versions of python use an MSI file. You'll need to click through the wizard during installation. There's no need to change any options in it._
-- To set a python version as the global version: `pyenv global 3.5.2`
-   - This is the version of python that will be used by default if a local version (see below) isn't set.
-   - _Note: The version must first be installed_
-- To set a python version as the local version: `pyenv local 3.5.2`.
-   - The version given will be used whenever `python` is called from within this folder. This is different than a virtual env, which needs to be explicitly activated.
-   - _Note: The version must first be installed_
-- After (un)installing any python version, you must run `pyenv rehash` to update pyenv with the new python version.
-   - _Note: This must be run outside of the `.pyenv` folder_
-- To uninstall a python version: `pyenv uninstall 3.5.2`
-- To view which python you are using and its path: `pyenv version`
-- To view all the python versions installed on this system: `pyenv versions`
+To be updated
 
 ## How to get updates
 
-- If installed via pip
-   - Add pyenv-win installed path to `easy_install.pth` file which is located in site-package. Now pyenv-win is recognised by pip
-   - Get updates via pip `pip install --upgrade pyenv-win`
-- If installed via Git
-   - Go to the `%USERPROFILE%/.pyenv/pyenv-win` (which is your installed path) and run `git pull`
-- If installed via zip
-   - Download the latest zip and extract it
-   - Go to `%USERPROFILE%/.pyenv/pyenv-win/` and replace the folders `libexec` and `bin` with the new ones you just downloaded
+To be updated
 
 ## FAQ
 
-- **Question:** Does pyenv for windows support python2?
-   - **Answer:** Yes, We support python2 from version 2.0.1. We support it from 2.0.1 until python.org officially removes it.
+- **Question:** Does pyshim-env (fork of pyenv-win) support python2?
+   - **Answer:** No, only python 3 supported
 
-- **Question:** Does pyenv for windows support python3?
-   - **Answer:** Yes, we support python3 from version 3.0. We support it from 3.0 until python.org officially removes it.
+- **Question:** Is there any limitation to build from source ?
+   - **Answer:** Python version >= 3.6.3 supported.
 
-- **Question:** I am getting the issue `batch file cannot be found.` while installing python, what should I do?
-   - **Answer:** You can ignore it. It's calling `pyenv rehash` command before creating the bat file in few devices.
-
-- **Question:** System is stuck while uninstalling the python version, what to do?
-   - **Answer:** It's based on the system policies in some computers, recommend to uninstall in these computers by going to the path `%USERPROFILE%/.pyenv/pyenv-win/install_cache/`. I believe you know manual uninstallation. Please remove the `site-package` and `scripts` while uninstalling (mandatory). Double check the python version folder doesn't exist in the path `%USERPROFILE%/.pyenv/pyenv-win/versions/` if exist please do remove it (mandatory).
-
-- **Question:** I installed pyenv-win using pip. How can I uninstall it?
-   - **Answer:** Follow the pip instructions in [How to get updates](#how-to-get-updates) and then run `pip uninstall pyenv-win`
-
-- **Question:** pyenv-win not recognised, but I have set the ENV PATH?
-   - **Answer:** According to windows added the path in User or System variable, For User variale you need to logout and login to reflect the path. For System variavle it's not required.
-
+To be updated
 
 
 ## How to contribute
 
-- Fork the project & clone locally.
-- Create an upstream remote and sync your local copy before you branch.
-- Branch for each separate piece of work. It's a good practise to write test cases.
-- Do the work, write good commit messages, and read the CONTRIBUTING file if there is one.
-- Test the changes by running `tests\test_install.bat` and `tests\test_uninstall.bat`
-- Push to your origin repository.
-- Create a new Pull Request in GitHub.
+- To be updated
 
 ## Bug Tracker and Support
 
@@ -159,4 +124,4 @@ pyenv-win was developed by [Kiran Kumar Kotari](https://github.com/kirankotari) 
 [1]: https://github.com/pyenv/pyenv
 [2]: https://github.com/rbenv/rbenv
 [3]: https://github.com/nak1114/rbenv-win
-[4]: https://github.com/pyenv/pyenv/issues/62
+

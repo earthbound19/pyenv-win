@@ -3,6 +3,38 @@
 $dp0 = $PSScriptRoot
 $g_pyenv_root = Split-Path $dp0
 
+function Get-CurrentLineNumber {
+  $MyInvocation.ScriptLineNumber
+}
+# from  https://poshoholic.com/2009/01/19/powershell-quick-tip-how-to-retrieve-the-current-line-number-and-file-name-in-your-powershell-script/
+
+New-Alias -Name __LINE__ -Value Get-CurrentLineNumber -Description 'Returns the current line number in a PowerShell script file.'
+
+function Get-CurrentFileName {
+  $MyInvocation.ScriptName | Split-Path -leaf
+}
+
+New-Alias -Name __FILE__ -Value Get-CurrentFileName -Description 'Returns the name of the current PowerShell script file.'
+#endregion
+
+function getCommand($cmd)
+{
+    [IO.Path]::Combine( $g_pyshim_libexec_path , "pyshim-$($cmd).ps1")
+}
+function executeCommand($cmdlet, $arr_rguments) {
+  # https://stackoverflow.com/questions/12850487/invoke-a-second-script-with-arguments-from-a-script
+  # strange.... if yaml have no contents error happens here...
+  if (!$cmdlet) { return; }
+
+  if ($arr_rguments -gt 0) {
+    $call_args = $arr_rguments -join ' ' 
+  } else {
+    $call_args = ""
+  }
+  Invoke-Expression "& `"$cmdlet`" $call_args"
+  if (-Not $?) {throw "Failed to run $cmdlet"}
+}
+
 #region global variable set
 $Global:g_pyshim_flag_commonlib_loaded = $true
 $Global:g_pyshim_libexec_path           = [IO.Path]::Combine( $g_pyenv_root , "libexec")
@@ -25,34 +57,25 @@ if ($env:PYTHON_BUILD_PATH)
     $Global:g_python_build_path         = [IO.Path]::Combine( $g_pyenv_root , "sources")
 }
 
-
 #endregion
+
 
 Import-Module "$g_pyshim_lib_path\getargs.ps1" -Force
-Import-Module "$g_pyshim_lib_path\powershell-yaml\powershell-yaml.psm1" -Force -DisableNameChecking
+Import-Module "$g_pyshim_lib_path\powershell-yaml\powershell-yaml.ps1" -Force -DisableNameChecking 3>$null
 
-#read config
 
-[string[]]$script:fileContent = Get-Content "$([IO.Path]::Combine($g_pyshim_config_path, 'config_pyenv.yaml'))"
+# check config_env.bat ,config_pyenv.yaml exist , if not copy from template
+if (-Not (Test-Path([IO.Path]::Combine($g_pyshim_config_path, "config_env.bat")))) {
+  Copy-Item -Path ([IO.Path]::Combine($g_pyshim_config_path, "config_env.bat-template")) `
+            -Destination ([IO.Path]::Combine($g_pyshim_config_path, "config_env.bat"))
+}
 
-$script:content = ''
-foreach ($line in $fileContent) { $content = $content + "`n" + $line }
-$Global:g_pyshim_config_yaml = ConvertFrom-YAML $content -Ordered
+if (-Not (Test-Path([IO.Path]::Combine($g_pyshim_config_path, "config_pyenv.yaml")))) {
+  Copy-Item -Path ([IO.Path]::Combine($g_pyshim_config_path, "config_pyenv.yaml-template")) `
+            -Destination ([IO.Path]::Combine($g_pyshim_config_path, "config_pyenv.yaml"))
+}
 
 #region diagnosis
-function Get-CurrentLineNumber {
-  $MyInvocation.ScriptLineNumber
-}
-# from  https://poshoholic.com/2009/01/19/powershell-quick-tip-how-to-retrieve-the-current-line-number-and-file-name-in-your-powershell-script/
-
-New-Alias -Name __LINE__ -Value Get-CurrentLineNumber -Description 'Returns the current line number in a PowerShell script file.'
-
-function Get-CurrentFileName {
-  $MyInvocation.ScriptName | Split-Path -leaf
-}
-
-New-Alias -Name __FILE__ -Value Get-CurrentFileName -Description 'Returns the name of the current PowerShell script file.'
-#endregion
 
 Function Get-IniFile ($file) {
 # https://stackoverflow.com/questions/417798/ini-file-parsing-in-powershell
@@ -82,6 +105,7 @@ Function Get-IniFile ($file) {
   $Global:g_pyshim_externals_ini = Get-IniFile $fn_externals_ini
 
 
+
 Function Get-PyVersionNo($version_string){
 
   $ret_version = [PSCustomObject]@{
@@ -109,17 +133,6 @@ function script:Set-Verbose($val) {
 }
 
 
-function getCommand($cmd)
-{
-    [IO.Path]::Combine( $g_pyshim_libexec_path , "pyshim-$($cmd).ps1")
-}
-function executeCommand($cmdlet, $arr_rguments) {
-  # https://stackoverflow.com/questions/12850487/invoke-a-second-script-with-arguments-from-a-script
-
-  $call_args = $arr_rguments -join ' ' 
-  Invoke-Expression "& `"$cmdlet`" $call_args"
-}
-
 Function Expand-7z() {
   [CmdletBinding()]
   param(
@@ -140,5 +153,15 @@ Function Expand-7z() {
 
 }
 
+# LOAD YAML
+[string[]]$script:fileContent = Get-Content "$([IO.Path]::Combine($g_pyshim_config_path, 'config_pyenv.yaml'))"
 
+$script:content = ''
+foreach ($line in $fileContent) { $content = $content + "`n" + $line }
 
+try {
+$Global:g_pyshim_config_yaml = ConvertFrom-YAML $content -Ordered
+} catch {
+  Write-Host "$(__FILE__):$(__LINE__)) error while loading yaml"
+  exit 1
+}

@@ -1,0 +1,6 @@
+# this is yaml comments
+python_build:
+    default-site: https://www.python.org/ftp/python
+    mirror-sites:
+        - http://mirrors.sohu.com/python
+        - http://npm.taobao.org/mirrors/python
