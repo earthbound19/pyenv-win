@@ -109,7 +109,7 @@ To be updated
 
 ## Bug Tracker and Support
 
-- Please report any suggestions, bug reports, or annoyances with pyenv-win through the [GitHub bug tracker](https://github.com/pyenv-win/pyenv-win/issues).
+- Please report any suggestions, bug reports, or annoyances with pyshim-win through the [GitHub bug tracker](https://github.com/inseopark/pyshim-win/issues).
 
 ## License and Copyright
 
@@ -118,7 +118,8 @@ To be updated
    [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Author and Thanks
-
+pyshim-win is inseopark 's forked trial. 
+original idea derived from : 
 pyenv-win was developed by [Kiran Kumar Kotari](https://github.com/kirankotari) and [Contributors](https://github.com/pyenv-win/pyenv-win/graphs/contributors)
 
 [1]: https://github.com/pyenv/pyenv
