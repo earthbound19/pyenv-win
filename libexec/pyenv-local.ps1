@@ -1,11 +1,11 @@
 #requires -V 5
-# pyshim-local.ps1
+# pyenv-local.ps1
 
 $script:dp0 = $PSScriptRoot
 $script:parent_path = Split-Path $dp0
 $script:workingdir = Get-Location
 
-if (!$Global:g_pyshim_flag_commonlib_loaded) {
+if (!$Global:g_pyenv_flag_commonlib_loaded) {
     Import-Module "$parent_path\lib\commonlib.ps1" -Force
     Write-Verbose "($(__FILE__):$(__LINE__)) Common lib not loaded .. loading..."
 }
@@ -25,7 +25,7 @@ function script:Main($argv) {
 
     if ($opts.verbose) {Set-Verbose('Continue') }
 
-    $pyshim_version_list = Get-ChildItem -Name -Path $Global:g_pyshim_versions_path -Directory
+    $pyenv_version_list = Get-ChildItem -Name -Path $Global:g_pyenv_versions_path -Directory
 
     if($opts.unset) { cmd_unset ; return }
 
@@ -34,10 +34,10 @@ function script:Main($argv) {
 
         Write-Verbose "($(__FILE__):$(__LINE__)) version to set: $st_version_to_set"
 
-        if ($pyshim_version_list -contains $st_version_to_set) {
+        if ($pyenv_version_list -contains $st_version_to_set) {
             Set-Content -Path $g_fn_python_version -Value $st_version_to_set -NoNewline
         } else {
-            Write-Host "pyshim: version '$st_version_to_set' not installed"
+            Write-Host "pyenv: version '$st_version_to_set' not installed"
         }
     } else {
 

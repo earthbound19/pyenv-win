@@ -1,5 +1,5 @@
 #requires -V 5.1
-# pyshim-install.ps1
+# pyenv-install.ps1
 
 $script:dp0 = $PSScriptRoot
 $script:parent_path = Split-Path $dp0
@@ -7,35 +7,35 @@ $script:workingdir = Get-Location
 
 $ErrorActionPreference = "Stop"
 
-if (!$Global:g_pyshim_flag_commonlib_loaded) {
+if (!$Global:g_pyenv_flag_commonlib_loaded) {
     Import-Module "$parent_path\lib\commonlib.ps1" -Force
     Write-Verbose "($(__FILE__):$(__LINE__)) Common lib not loaded .. loading..."
 }
 
 $script:build_pythonx86_bin = [IO.Path]::Combine($Global:g_global_build_plugin_path, "pythonx86", "Tools", "python.exe")
-$script:build_unpacker      = [IO.Path]::Combine($Global:g_global_build_plugin_path, "pyshim_unpack.py")
-$script:pyshim_builder      = [IO.Path]::Combine($Global:g_global_build_plugin_path, "pyshim_build.bat")
+$script:build_unpacker      = [IO.Path]::Combine($Global:g_global_build_plugin_path, "$g_pyenv_fn-unpack.py")
+$script:pyenv_builder      = [IO.Path]::Combine($Global:g_global_build_plugin_path, "$g_pyenv_fn-build.bat")
 $script:min_buildable_version ='3.6.3'
 $script:nuget_bin           = [IO.Path]::Combine($Global:g_global_externals_path , "nuget.exe")
-$script:7z_bin              = [IO.Path]::Combine($Global:g_global_externals_path , $g_pyshim_externals_ini['7z']['outfile'])
+$script:7z_bin              = [IO.Path]::Combine($Global:g_global_externals_path , $g_pyenv_externals_ini['7z']['outfile'])
 
 function script:Check_Externals() {
     Write-Verbose "($(__FILE__):$(__LINE__)) checking external application ..."
     if (-not (Test-Path $script:nuget_bin)) {
         Write-Host "nuget missing, installing nuget ..."
-        & ([IO.Path]::Combine($g_pyshim_libexec_path, "get_externals.ps1")) 'nuget'
+        & ([IO.Path]::Combine($g_pyenv_libexec_path, "get_externals.ps1")) 'nuget'
     }
 
     if (-not (Test-Path $script:7z_bin)) {
         Write-Host "7za missing, installing 7z  ..."
-        & ([IO.Path]::Combine($g_pyshim_libexec_path, "get_externals.ps1")) '7z'
+        & ([IO.Path]::Combine($g_pyenv_libexec_path, "get_externals.ps1")) '7z'
     }
 }
 
 Function script:Build_Python($build_version) {
     Write-Verbose "($(__FILE__):$(__LINE__)) Build_Python triggered"
    try {
-        $script:default_url = $Global:g_pyshim_config_yaml["python_build"]["default-site"]
+        $script:default_url = $Global:g_pyenv_config_yaml["python_build"]["default-site"]
         $fetch_url  = "$($default_url)/$($build_version)/Python-$($build_version).tar.xz"
         $dest_file  =  [IO.Path]::Combine($Global:g_python_build_path, "Python-" + $build_version + ".tar.xz")
         $build_path = [IO.Path]::Combine($Global:g_python_build_path, "Python-" + $build_version)
@@ -93,16 +93,16 @@ Function script:Build_Python($build_version) {
     $call_args = "-x64 --src `"$($build_path)`""
 
     if ($VerbosePreference -ieq "Continue") {
-        Invoke-Expression  "& `"$pyshim_builder`" $call_args" | Tee-Object -Append -FilePath "$build_log"
+        Invoke-Expression  "& `"$pyenv_builder`" $call_args" | Tee-Object -Append -FilePath "$build_log"
     } else {
-        Invoke-Expression  "& `"$pyshim_builder`" $call_args" > "$build_log"
+        Invoke-Expression  "& `"$pyenv_builder`" $call_args" > "$build_log"
     }
 
     $build_exit_code = $LASTEXITCODE
     Write-Verbose "($(__FILE__):$(__LINE__)) build exit code: $build_exit_code"
 
-    if (-Not (Test-Path ([IO.Path]::Combine( $Global:g_pyshim_versions_path, $build_version)))) {
-        Write-Host "pyshim: build failed check build log :$build_log_file" `
+    if (-Not (Test-Path ([IO.Path]::Combine( $Global:g_pyenv_versions_path, $build_version)))) {
+        Write-Host "pyenv: build failed check build log :$build_log_file" `
         -ForegroundColor White -BackgroundColor Red -NoNewline
         exit 1;
     }
@@ -115,7 +115,7 @@ Function script:Build_Python($build_version) {
         Remove-Item "$build_path" -Force -Recurse
     }
 
-    Write-Host "pyshim: $build_version installed successfully" -ForegroundColor Blue
+    Write-Host "pyenv: $build_version installed successfully" -ForegroundColor Blue
 
 }
 
@@ -123,23 +123,23 @@ Function script:Nuget_Install($build_version) {
     # nuget install python -Version 3.6.3 -NoCache -NonInteractive -OutputDirectory ..
 
     $call_args = "install python -Version $($build_version) -NonInteractive " + `
-                 "-OutputDirectory `"$($Global:g_pyshim_versions_path)`""
+                 "-OutputDirectory `"$($Global:g_pyenv_versions_path)`""
 
 
     Invoke-Expression  "& `"$nuget_bin`" $call_args"
 
     Write-Verbose "($(__FILE__):$(__LINE__)) nuget exit code : $LastExitCode"
-    $nupkg_path = [IO.Path]::Combine($Global:g_pyshim_versions_path, "python." + $build_version)
+    $nupkg_path = [IO.Path]::Combine($Global:g_pyenv_versions_path, "python." + $build_version)
 
     if (($LastExitCode -ne 0) -or (-Not( Test-Path $nupkg_path))) {
 
         Write-Host "failed during install via nuget version : $build_version, try --build option if possible"
     } else {
         # rename directory
-        Rename-Item $nupkg_path ([IO.Path]::Combine($Global:g_pyshim_versions_path, $build_version)) 
+        Rename-Item $nupkg_path ([IO.Path]::Combine($Global:g_pyenv_versions_path, $build_version)) 
         #remove unnecessary *.nupkg
-        Remove-Item ([IO.Path]::Combine($Global:g_pyshim_versions_path, $build_version, "*.nupkg"))
-        Write-Host "pyshim: $build_version installed successfully" -ForegroundColor Blue -NoNewline
+        Remove-Item ([IO.Path]::Combine($Global:g_pyenv_versions_path, $build_version, "*.nupkg"))
+        Write-Host "pyenv: $build_version installed successfully" -ForegroundColor Blue -NoNewline
     }
 }
 
@@ -147,22 +147,22 @@ Function script:Nuget_FileInstall($build_version) {
     # nuget install python -Version 3.6.3 -NoCache -NonInteractive -OutputDirectory ..
 
     $call_args = "install python -Version $($build_version) -NonInteractive " + `
-                 "-OutputDirectory `"$($Global:g_pyshim_versions_path)`""
+                 "-OutputDirectory `"$($Global:g_pyenv_versions_path)`""
 
     Invoke-Expression  "& `"$nuget_bin`" $call_args"
 
     Write-Verbose "($(__FILE__):$(__LINE__)) nuget exit code : $LastExitCode"
-    $nupkg_path = [IO.Path]::Combine($Global:g_pyshim_versions_path, "python." + $build_version)
+    $nupkg_path = [IO.Path]::Combine($Global:g_pyenv_versions_path, "python." + $build_version)
 
     if (($LastExitCode -ne 0) -or (-Not( Test-Path $nupkg_path))) {
 
         Write-Host "failed during install via nuget version : $build_version, try --build option if possible"
     } else {
         # rename directory
-        Rename-Item $nupkg_path ([IO.Path]::Combine($Global:g_pyshim_versions_path, $build_version)) 
+        Rename-Item $nupkg_path ([IO.Path]::Combine($Global:g_pyenv_versions_path, $build_version)) 
         #remove unnecessary *.nupkg
-        Remove-Item ([IO.Path]::Combine($Global:g_pyshim_versions_path, $build_version, "*.nupkg"))
-        Write-Host "pyshim: $build_version installed successfully" -ForegroundColor Blue -NoNewline
+        Remove-Item ([IO.Path]::Combine($Global:g_pyenv_versions_path, $build_version, "*.nupkg"))
+        Write-Host "pyenv: $build_version installed successfully" -ForegroundColor Blue -NoNewline
     }
 }
 
@@ -225,11 +225,11 @@ function script:Main($argv) {
     $o_version =  Get-PyVersionNo ($requested_version)
     $st_version = "$($o_version.Major).$($o_version.Minor).$($o_version.Patch)"
 
-    if (Test-Path ([IO.Path]::Combine( $Global:g_pyshim_versions_path, $st_version))) {
+    if (Test-Path ([IO.Path]::Combine( $Global:g_pyenv_versions_path, $st_version))) {
 
         if ($opts.f -or $opts.force) {
             Write-Verbose "($(__FILE__):$(__LINE__)) force options given, version directory to be delete"
-            $del_tree = [IO.Path]::Combine( $Global:g_pyshim_versions_path, $st_version)
+            $del_tree = [IO.Path]::Combine( $Global:g_pyenv_versions_path, $st_version)
             Write-Host "Force install option triggered... deleting $del_tree"
             Remove-Item -Path $del_tree -Force -Recurse
         } else {

@@ -3,7 +3,7 @@
 
 $script:dp0 = $PSScriptRoot
 $script:g_pyenv_root = Split-Path $dp0
-
+$Global:g_pyenv_fn = (Get-Item $PSCommandPath ).Basename
 
 if([bool]($args -match '--verbose'))
 {
