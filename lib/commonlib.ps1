@@ -3,6 +3,7 @@
 $dp0 = $PSScriptRoot
 $g_pyenv_root = Split-Path $dp0
 
+
 function Get-CurrentLineNumber {
   $MyInvocation.ScriptLineNumber
 }
@@ -19,7 +20,7 @@ New-Alias -Name __FILE__ -Value Get-CurrentFileName -Description 'Returns the na
 
 function getCommand($cmd)
 {
-    [IO.Path]::Combine( $g_pyshim_libexec_path , "pyshim-$($cmd).ps1")
+    [IO.Path]::Combine( $g_pyenv_libexec_path , "$g_pyenv_fn-$($cmd).ps1")
 }
 function executeCommand($cmdlet, $arr_rguments) {
   # https://stackoverflow.com/questions/12850487/invoke-a-second-script-with-arguments-from-a-script
@@ -36,18 +37,18 @@ function executeCommand($cmdlet, $arr_rguments) {
 }
 
 #region global variable set
-$Global:g_pyshim_flag_commonlib_loaded = $true
-$Global:g_pyshim_libexec_path           = [IO.Path]::Combine( $g_pyenv_root , "libexec")
-$Global:g_pyshim_lib_path               = [IO.Path]::Combine( $g_pyenv_root , "lib")
-$Global:g_pyshim_versions_path          = [IO.Path]::Combine( $g_pyenv_root , "versions")
-$Global:g_pyshim_temp_path              = [IO.Path]::Combine( $g_pyenv_root , "temp")
+$Global:g_pyenv_flag_commonlib_loaded = $true
+$Global:g_pyenv_libexec_path           = [IO.Path]::Combine( $g_pyenv_root , "libexec")
+$Global:g_pyenv_lib_path               = [IO.Path]::Combine( $g_pyenv_root , "lib")
+$Global:g_pyenv_versions_path          = [IO.Path]::Combine( $g_pyenv_root , "versions")
+$Global:g_pyenv_temp_path              = [IO.Path]::Combine( $g_pyenv_root , "temp")
 $Global:g_fn_python_version             = ".python-version"
 $Global:g_global_python_version_file    = [IO.Path]::Combine( $g_pyenv_root , "version")
 $Global:g_global_externals_path         = [IO.Path]::Combine( $g_pyenv_root , "externals")
-$Global:g_global_build_plugin_path      = [IO.Path]::Combine( $g_pyenv_root , "plugins", "python_build")
-$Global:g_pyshim_shims_path             = [IO.Path]::Combine( $g_pyenv_root , "shims")
-$Global:g_pyshim_config_path            = [IO.Path]::Combine( $g_pyenv_root , "config")
-$Global:g_pyshim_exe                    = [IO.Path]::Combine( $g_pyshim_lib_path , "pyshim.exe")
+$Global:g_global_build_plugin_path      = [IO.Path]::Combine( $g_pyenv_root , "plugins", "python-build")
+$Global:g_pyenv_shims_path             = [IO.Path]::Combine( $g_pyenv_root , "shims")
+$Global:g_pyenv_config_path            = [IO.Path]::Combine( $g_pyenv_root , "config")
+$Global:g_pyenv_exe                    = [IO.Path]::Combine( $g_pyenv_lib_path , "pyshim.exe")
 $script:fn_externals_ini                = [IO.Path]::Combine( $g_pyenv_root, "config", "externals.ini")
 
 if ($env:PYTHON_BUILD_PATH)
@@ -60,19 +61,19 @@ if ($env:PYTHON_BUILD_PATH)
 #endregion
 
 
-Import-Module "$g_pyshim_lib_path\getargs.ps1" -Force
-Import-Module "$g_pyshim_lib_path\powershell-yaml\powershell-yaml.ps1" -Force -DisableNameChecking 3>$null
+Import-Module "$g_pyenv_lib_path\getargs.ps1" -Force
+Import-Module "$g_pyenv_lib_path\powershell-yaml\powershell-yaml.ps1" -Force -DisableNameChecking 3>$null
 
 
 # check config_env.bat ,config_pyenv.yaml exist , if not copy from template
-if (-Not (Test-Path([IO.Path]::Combine($g_pyshim_config_path, "config_env.bat")))) {
-  Copy-Item -Path ([IO.Path]::Combine($g_pyshim_config_path, "config_env.bat-template")) `
-            -Destination ([IO.Path]::Combine($g_pyshim_config_path, "config_env.bat"))
+if (-Not (Test-Path([IO.Path]::Combine($g_pyenv_config_path, "config_env.bat")))) {
+  Copy-Item -Path ([IO.Path]::Combine($g_pyenv_config_path, "config_env.bat-template")) `
+            -Destination ([IO.Path]::Combine($g_pyenv_config_path, "config_env.bat"))
 }
 
-if (-Not (Test-Path([IO.Path]::Combine($g_pyshim_config_path, "config_pyenv.yaml")))) {
-  Copy-Item -Path ([IO.Path]::Combine($g_pyshim_config_path, "config_pyenv.yaml-template")) `
-            -Destination ([IO.Path]::Combine($g_pyshim_config_path, "config_pyenv.yaml"))
+if (-Not (Test-Path([IO.Path]::Combine($g_pyenv_config_path, "config_pyenv.yaml")))) {
+  Copy-Item -Path ([IO.Path]::Combine($g_pyenv_config_path, "config_pyenv.yaml-template")) `
+            -Destination ([IO.Path]::Combine($g_pyenv_config_path, "config_pyenv.yaml"))
 }
 
 #region diagnosis
@@ -102,9 +103,7 @@ Function Get-IniFile ($file) {
     $ini
   }
 
-  $Global:g_pyshim_externals_ini = Get-IniFile $fn_externals_ini
-
-
+  $Global:g_pyenv_externals_ini = Get-IniFile $fn_externals_ini
 
 Function Get-PyVersionNo($version_string){
 
@@ -145,7 +144,7 @@ Function Expand-7z() {
     [string]$Destination
   )
 
-  $7z_bin = [IO.Path]::Combine($Global:g_global_externals_path , "7za.exe")
+  $7z_bin = [IO.Path]::Combine($Global:g_global_externals_path , $g_pyenv_externals_ini['7z']['outfile'])
   
   $call_args = "x $($Path) -o$(Destination) -bso1 -y"
 
@@ -154,13 +153,13 @@ Function Expand-7z() {
 }
 
 # LOAD YAML
-[string[]]$script:fileContent = Get-Content "$([IO.Path]::Combine($g_pyshim_config_path, 'config_pyenv.yaml'))"
+[string[]]$script:fileContent = Get-Content "$([IO.Path]::Combine($g_pyenv_config_path, 'config_pyenv.yaml'))"
 
 $script:content = ''
 foreach ($line in $fileContent) { $content = $content + "`n" + $line }
 
 try {
-$Global:g_pyshim_config_yaml = ConvertFrom-YAML $content -Ordered
+$Global:g_pyenv_config_yaml = ConvertFrom-YAML $content -Ordered
 } catch {
   Write-Host "$(__FILE__):$(__LINE__)) error while loading yaml"
   exit 1

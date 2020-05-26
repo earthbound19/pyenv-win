@@ -1,11 +1,11 @@
 #requires -V 5
-# pyshim-install.ps1
+# pyenv-install.ps1
 
 $script:dp0 = $PSScriptRoot
 $script:parent_path = Split-Path $dp0
 $script:workingdir = Get-Location
 
-if (!$Global:g_pyshim_flag_commonlib_loaded) {
+if (!$Global:g_pyenv_flag_commonlib_loaded) {
     Import-Module "$parent_path\lib\commonlib.ps1" -Force
     Write-Verbose "($(__FILE__):$(__LINE__)) Common lib not loaded .. loading..."
 }
@@ -27,7 +27,7 @@ function script:Main($argv) {
     #endregion
 
     if ($opts.list) {
-        Get-ChildItem -Name -Path $Global:g_pyshim_versions_path -Directory
+       Get-ChildItem -Name -Path $Global:g_pyenv_versions_path -Directory | Sort-Object -Descending {[version] $_}
 
     } else {
     #regioin option null, -name

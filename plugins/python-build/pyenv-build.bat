@@ -24,6 +24,7 @@ set REBUILD=
 set PACKAGES=
 SET __SRCDIR__=
 SET __CLEAN_TARGET__=
+SET "__PYENV_BUILD_PROJ__=pyenv-build.proj"
 
 :CheckOpts
 if "%~1" EQU "-h" goto Help
@@ -96,9 +97,9 @@ if defined BUILDX64 (
 popd
 
 if defined BUILDX64 (
-    %MSBUILD% -nologo "%D%pyshim_build.proj" /p:Platform=x64
+    %MSBUILD% -nologo "%D%%__PYENV_BUILD_PROJ__%" /p:Platform=x64
 ) ELSE (
-    %MSBUILD% -nologo "%D%pyshim_build.proj"
+    %MSBUILD% -nologo "%D%%__PYENV_BUILD_PROJ__%"
 )
 endlocal & IF "%ERRORLEVEL%" NEQ "0" EXIT /B %ERRORLEVEL%
 exit /B 0

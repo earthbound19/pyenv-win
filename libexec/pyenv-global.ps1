@@ -1,11 +1,11 @@
 #requires -V 5
-# pyshim-local.ps1
+# pyenv-local.ps1
 
 $script:dp0 = $PSScriptRoot
 $script:parent_path = Split-Path $dp0
 $script:workingdir = Get-Location
 
-if (!$Global:g_pyshim_flag_commonlib_loaded) {
+if (!$Global:g_pyenv_flag_commonlib_loaded) {
     Import-Module "$parent_path\lib\commonlib.ps1" -Force
     Write-Verbose "($(__FILE__):$(__LINE__)) Common lib not loaded .. loading..."
 }
@@ -14,10 +14,10 @@ $script:nl = [Environment]::NewLine
 
 function script:gen_shim ($shim, $shim_path_exe, $shim_version, $shim_args) {
 
-    Copy-Item -Path ($Global:g_pyshim_exe) -Destination ([IO.Path]::Combine($Global:g_pyshim_shims_path,  "$shim.exe"))
+    Copy-Item -Path ($Global:g_pyenv_exe) -Destination ([IO.Path]::Combine($Global:g_pyenv_shims_path,  "$shim.exe"))
     
-    $shim_file = [IO.Path]::Combine($Global:g_pyshim_shims_path,  "$shim.shim")
-    $shim_path = [IO.Path]::Combine($Global:g_pyshim_versions_path,  $shim_version,  "tools", $shim_path_exe)
+    $shim_file = [IO.Path]::Combine($Global:g_pyenv_shims_path,  "$shim.shim")
+    $shim_path = [IO.Path]::Combine($Global:g_pyenv_versions_path,  $shim_version,  "tools", $shim_path_exe)
 
     Set-Content -Path $shim_file -Value "path = $($shim_path)" -NoNewline
     
@@ -28,8 +28,8 @@ function script:gen_shim ($shim, $shim_path_exe, $shim_version, $shim_args) {
 }
 function script:make_shims($st_version) {
 
-    New-Item -ItemType Directory -Force -Path $Global:g_pyshim_shims_path > $null
-    Remove-Item ([IO.Path]::Combine($Global:g_pyshim_shims_path,  "*.*"))
+    New-Item -ItemType Directory -Force -Path $Global:g_pyenv_shims_path > $null
+    Remove-Item ([IO.Path]::Combine($Global:g_pyenv_shims_path,  "*.*"))
 
     $p_semantic_ver = Get-PyVersionNo($st_version)
     
@@ -55,7 +55,7 @@ function script:Main($argv) {
     
     $script:python_global_version = "system"
 
-    $script:pyshim_version_list = Get-ChildItem -Name -Path $Global:g_pyshim_versions_path -Directory
+    $script:pyenv_version_list = Get-ChildItem -Name -Path $Global:g_pyenv_versions_path -Directory
     if (Test-Path $Global:g_global_python_version_file) {
         $python_global_version = (Get-Content -Path $g_global_python_version_file -TotalCount 1).Trim()
     }
@@ -64,17 +64,17 @@ function script:Main($argv) {
         if(-Not (Test-Path ($g_global_python_version_file))) {
             Write-Host "system" -NoNewline
         } else {
-            if ($pyshim_version_list -contains $python_global_version) {
+            if ($pyenv_version_list -contains $python_global_version) {
                 Write-Host "$python_global_version" -NoNewline
             } else {
-                Write-Host "pyshim: global version set to $python_global_version, but not exist" `
+                Write-Host "$($g_pyenv_fn): global version set to $python_global_version, but not exist" `
                  -ForegroundColor White -BackgroundColor Red 
             }
         }
     } else {
         $st_version = $remains[0]
 
-        if ($pyshim_version_list -contains $st_version) {
+        if ($pyenv_version_list -contains $st_version) {
             Set-Content -Path $Global:g_global_python_version_file -Value $st_version  -NoNewline
             make_shims($st_version)
         } else {
